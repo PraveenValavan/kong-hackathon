@@ -1,0 +1,92 @@
+_format_version: "3.0"
+_transform: true
+
+# ─── Services ───────────────────────────────────────────────────────────────
+
+services:
+  - name: openai-service
+    url: https://api.openai.com
+    tags: [aira, openai]
+
+  - name: anthropic-service
+    url: https://api.anthropic.com
+    tags: [aira, anthropic]
+
+# ─── Routes ─────────────────────────────────────────────────────────────────
+
+routes:
+  - name: openai-route
+    service: openai-service
+    paths:
+      - /openai
+    strip_path: true
+    tags: [aira, openai]
+
+  - name: anthropic-route
+    service: anthropic-service
+    paths:
+      - /anthropic
+    strip_path: true
+    tags: [aira, anthropic]
+
+# ─── Plugins ────────────────────────────────────────────────────────────────
+
+plugins:
+  # OIDC — validates Bearer token against mock IdP on every request
+  - name: openid-connect
+    config:
+      issuer: http://mock-oauth2:8080/default/.well-known/openid-configuration
+      client_id:
+        - aira-local
+      client_secret:
+        - aira-secret
+      auth_methods:
+        - bearer
+      bearer_token_param_type:
+        - header
+      verify_signature: true
+      issuers_allowed:
+        - http://localhost:8080/default
+        - http://mock-oauth2:8080/default
+      # Step 2: add upstream_headers_claims here to forward role/team_id
+
+  # Rate limiting — 100 requests per minute (local node, no Redis needed)
+  - name: rate-limiting-advanced
+    route: openai-route
+    config:
+      limit:
+        - 100
+      window_size:
+        - 60
+      sync_rate: -1
+
+  - name: rate-limiting-advanced
+    route: anthropic-route
+    config:
+      limit:
+        - 100
+      window_size:
+        - 60
+      sync_rate: -1
+
+  # Request transformer — strip incoming auth, inject real upstream API key
+  - name: request-transformer
+    service: openai-service
+    config:
+      remove:
+        headers:
+          - Authorization
+      add:
+        headers:
+          - "Authorization:Bearer $(OPENAI_API_KEY)"
+
+  - name: request-transformer
+    service: anthropic-service
+    config:
+      remove:
+        headers:
+          - Authorization
+      add:
+        headers:
+          - "x-api-key:$(ANTHROPIC_API_KEY)"
+          - "anthropic-version:2023-06-01"

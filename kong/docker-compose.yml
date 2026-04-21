@@ -1,0 +1,40 @@
+services:
+  mock-oauth2:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    container_name: aira-mock-idp
+    ports:
+      - "8080:8080"
+    networks:
+      - aira-kong
+
+  kong:
+    image: kong/kong-gateway:3.9
+    container_name: aira-kong
+    depends_on:
+      - mock-oauth2
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_LICENSE_DATA: ${KONG_LICENSE_DATA}
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_LOG_LEVEL: info
+      # Upstream API keys available to request-transformer plugin
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    ports:
+      - "8000:8000"   # proxy
+      - "8001:8001"   # admin API
+    volumes:
+      - ./kong.yml:/kong/kong.yml:ro
+    networks:
+      - aira-kong
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  aira-kong:
+    driver: bridge
