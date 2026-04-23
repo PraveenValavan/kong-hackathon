@@ -30,29 +30,54 @@ curl http://localhost:8001/status
 
 ## Get a Token
 
-**Developer** (default role, `team_id` and `department` claims required for cost tracking):
+Custom JWT claims (`team_id`, `department`, `role`) are injected via the `scope` parameter. mock-oauth2-server v2.x maps each scope value to a fixed set of claims configured in `JSON_CONFIG` in `docker-compose.yml`.
+
+> **Note:** The `?claims=...` query-param approach from older examples is **broken in v2.x** and will return a server error. Always use the `scope` approach below.
+
+**Engineer** (`team_id: nlp-platform`, `department: R&D`):
 ```bash
-curl -s -X POST "http://localhost:8080/default/token?claims=%7B%22team_id%22%3A%22nlp-platform%22%2C%22department%22%3A%22R%26D%22%7D" \
+curl -s -X POST http://localhost:8080/default/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials&client_id=aira-local&client_secret=aira-secret&scope=openid" \
+  -d "grant_type=client_credentials&client_id=aira-local&client_secret=aira-secret&scope=engineering" \
   | jq -r .access_token
 ```
 
-**FinOps role:**
+**Data Scientist** (`team_id: data-science`, `department: R&D`):
 ```bash
-curl -s -X POST "http://localhost:8080/default/token?claims=%7B%22role%22%3A%22finops%22%2C%22team_id%22%3A%22finance%22%2C%22department%22%3A%22Finance%22%7D" \
+curl -s -X POST http://localhost:8080/default/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials&client_id=aira-local&client_secret=aira-secret&scope=openid" \
+  -d "grant_type=client_credentials&client_id=aira-local&client_secret=aira-secret&scope=datascience" \
   | jq -r .access_token
 ```
 
-**Org Admin:**
+**FinOps** (`team_id: finance`, `department: Finance`, `role: finops`):
 ```bash
-curl -s -X POST "http://localhost:8080/default/token?claims=%7B%22role%22%3A%22admin%22%2C%22team_id%22%3A%22platform%22%2C%22department%22%3A%22Engineering%22%7D" \
+curl -s -X POST http://localhost:8080/default/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials&client_id=aira-local&client_secret=aira-secret&scope=openid" \
+  -d "grant_type=client_credentials&client_id=aira-local&client_secret=aira-secret&scope=finops" \
   | jq -r .access_token
 ```
+
+**Admin** (`team_id: platform`, `department: Engineering`, `role: admin`):
+```bash
+curl -s -X POST http://localhost:8080/default/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials&client_id=aira-local&client_secret=aira-secret&scope=admin" \
+  | jq -r .access_token
+```
+
+Expected JWT payload (engineering example):
+```json
+{
+  "sub": "engineer-001",
+  "team_id": "nlp-platform",
+  "department": "R&D",
+  "role": "engineering",
+  "iss": "http://localhost:8080/default"
+}
+```
+
+Kong's `openid-connect` plugin forwards `team_id` and `department` as `x-team-id` and `x-department` upstream headers, which the AIRA backend uses for cost attribution.
 
 ## Call Kong AI Gateway
 

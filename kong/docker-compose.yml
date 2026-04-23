@@ -6,6 +6,60 @@ services:
       - "8080:8080"
     networks:
       - aira-kong
+    # mock-oauth2-server v2.x injects custom JWT claims via tokenCallbacks in JSON_CONFIG.
+    # Each "scope" value maps to a fixed set of claims — use different scopes to get
+    # tokens for different personas during development and demos.
+    environment:
+      JSON_CONFIG: |
+        {
+          "tokenCallbacks": [
+            {
+              "issuerId": "default",
+              "requestMappings": [
+                {
+                  "requestParam": "scope",
+                  "match": "engineering",
+                  "claims": {
+                    "sub": "engineer-001",
+                    "team_id": "nlp-platform",
+                    "department": "R&D",
+                    "role": "engineering"
+                  }
+                },
+                {
+                  "requestParam": "scope",
+                  "match": "finops",
+                  "claims": {
+                    "sub": "finops-001",
+                    "team_id": "finance",
+                    "department": "Finance",
+                    "role": "finops"
+                  }
+                },
+                {
+                  "requestParam": "scope",
+                  "match": "admin",
+                  "claims": {
+                    "sub": "admin-001",
+                    "team_id": "platform",
+                    "department": "Engineering",
+                    "role": "admin"
+                  }
+                },
+                {
+                  "requestParam": "scope",
+                  "match": "datascience",
+                  "claims": {
+                    "sub": "ds-001",
+                    "team_id": "data-science",
+                    "department": "R&D",
+                    "role": "engineering"
+                  }
+                }
+              ]
+            }
+          ]
+        }
 
   kong:
     image: kong/kong-gateway:3.9
