@@ -2,6 +2,9 @@ _format_version: "3.0"
 _transform: true
 
 # ─── Services ───────────────────────────────────────────────────────────────
+# Kong AI Gateway: services act as provider targets.
+# ai-proxy handles auth injection and request/response normalisation natively —
+# no request-transformer needed.
 
 services:
   - name: openai-service
@@ -32,7 +35,10 @@ routes:
 # ─── Plugins ────────────────────────────────────────────────────────────────
 
 plugins:
-  # OIDC — validates Bearer token against mock IdP on every request
+  # ── Auth ────────────────────────────────────────────────────────────────────
+  # OIDC — validates Bearer token against mock IdP on every request.
+  # Forwards JWT claims as upstream headers so the AIRA backend knows
+  # which user/team/department made each call.
   - name: openid-connect
     config:
       issuer: http://mock-oauth2:8080/default/.well-known/openid-configuration
@@ -48,45 +54,101 @@ plugins:
       issuers_allowed:
         - http://localhost:8080/default
         - http://mock-oauth2:8080/default
-      # Step 2: add upstream_headers_claims here to forward role/team_id
+      upstream_headers_claims:
+        - sub:x-user-id
+        - team_id:x-team-id
+        - department:x-department
 
-  # Rate limiting — 100 requests per minute (local node, no Redis needed)
-  - name: rate-limiting-advanced
+  # ── AI Proxy (replaces request-transformer) ─────────────────────────────────
+  # Kong AI Gateway's ai-proxy plugin handles provider-specific auth injection,
+  # request/response format normalisation, and automatic token usage extraction.
+  # Token counts are available in Kong logs and upstream headers after each call.
+
+  - name: ai-proxy
+    route: openai-route
+    config:
+      route_type: llm/v1/chat
+      auth:
+        header_name: Authorization
+        header_value: "Bearer $(OPENAI_API_KEY)"
+      model:
+        provider: openai
+        name: gpt-4o
+        options:
+          max_tokens: 4096
+          temperature: 0.7
+
+  - name: ai-proxy
+    route: anthropic-route
+    config:
+      route_type: llm/v1/chat
+      auth:
+        header_name: x-api-key
+        header_value: "$(ANTHROPIC_API_KEY)"
+      model:
+        provider: anthropic
+        name: claude-haiku-4-5-20251001
+        options:
+          max_tokens: 4096
+          temperature: 0.7
+
+  # ── Token-Based Rate Limiting (replaces rate-limiting-advanced) ──────────────
+  # ai-rate-limiting-advanced counts tokens consumed rather than requests —
+  # directly aligned with cost. 500k tokens/hour per route for the PoC.
+
+  - name: ai-rate-limiting-advanced
     route: openai-route
     config:
       limit:
-        - 100
+        - 500000
       window_size:
-        - 60
+        - 3600
+      window_type: sliding
+      tokens_count_strategy: total_tokens
       sync_rate: -1
 
-  - name: rate-limiting-advanced
+  - name: ai-rate-limiting-advanced
     route: anthropic-route
     config:
       limit:
-        - 100
+        - 500000
       window_size:
-        - 60
+        - 3600
+      window_type: sliding
+      tokens_count_strategy: total_tokens
       sync_rate: -1
 
-  # Request transformer — strip incoming auth, inject real upstream API key
-  - name: request-transformer
-    service: openai-service
-    config:
-      remove:
-        headers:
-          - Authorization
-      add:
-        headers:
-          - "Authorization:Bearer $(OPENAI_API_KEY)"
+  # ── PII / Content Guard (replaces planned custom filter) ────────────────────
+  # ai-prompt-guard blocks requests matching sensitive data patterns before
+  # they reach the upstream LLM — no custom middleware needed.
 
-  - name: request-transformer
-    service: anthropic-service
+  - name: ai-prompt-guard
+    route: openai-route
     config:
-      remove:
-        headers:
-          - Authorization
-      add:
-        headers:
-          - "x-api-key:$(ANTHROPIC_API_KEY)"
-          - "anthropic-version:2023-06-01"
+      deny_patterns:
+        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"          # SSN
+        - "\\b\\d{16}\\b"                         # Credit card
+        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"  # Credentials
+      allow_all_conversation_history: true
+
+  - name: ai-prompt-guard
+    route: anthropic-route
+    config:
+      deny_patterns:
+        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        - "\\b\\d{16}\\b"
+        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
+      allow_all_conversation_history: true
+
+  # ── Usage Logging → AIRA Backend ────────────────────────────────────────────
+  # http-log emits the full Kong request/response log (including ai-proxy's
+  # token usage metadata) to the AIRA backend ingestion endpoint after each call.
+
+  - name: http-log
+    config:
+      http_endpoint: http://aira-backend:8002/ingest/event
+      method: POST
+      timeout: 5000
+      keepalive: 60000
+      flush_timeout: 2
+      retry_count: 2
