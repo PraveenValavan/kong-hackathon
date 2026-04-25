@@ -15,6 +15,10 @@ services:
     url: https://api.anthropic.com
     tags: [aira, anthropic]
 
+  - name: openrouter-service
+    url: https://openrouter.ai/api
+    tags: [aira, openrouter]
+
 # ─── Routes ─────────────────────────────────────────────────────────────────
 
 routes:
@@ -31,6 +35,13 @@ routes:
       - /anthropic
     strip_path: true
     tags: [aira, anthropic]
+
+  - name: openrouter-route
+    service: openrouter-service
+    paths:
+      - /openrouter
+    strip_path: true
+    tags: [aira, openrouter]
 
 # ─── Plugins ────────────────────────────────────────────────────────────────
 
@@ -93,6 +104,18 @@ plugins:
           temperature: 0.7
           anthropic_version: "2023-06-01"
 
+  # OpenRouter: no ai-proxy — model field passes through from the client request.
+  # Kong only strips the incoming Bearer token and injects the real OpenRouter key.
+  - name: request-transformer
+    route: openrouter-route
+    config:
+      remove:
+        headers:
+          - Authorization
+      add:
+        headers:
+          - "Authorization:Bearer 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"
+
   # ── Token-Based Rate Limiting (replaces rate-limiting-advanced) ──────────────
   # ai-rate-limiting-advanced counts tokens consumed rather than requests —
   # directly aligned with cost. 500k tokens/hour per route for the PoC.
@@ -113,6 +136,15 @@ plugins:
           limit: 500000
           window_size: 3600
 
+  - name: rate-limiting-advanced
+    route: openrouter-route
+    config:
+      limit:
+        - 100
+      window_size:
+        - 60
+      sync_rate: -1
+
   # ── PII / Content Guard (replaces planned custom filter) ────────────────────
   # ai-prompt-guard blocks requests matching sensitive data patterns before
   # they reach the upstream LLM — no custom middleware needed.
@@ -128,6 +160,15 @@ plugins:
 
   - name: ai-prompt-guard
     route: anthropic-route
+    config:
+      deny_patterns:
+        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        - "\\b\\d{16}\\b"
+        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
+      allow_all_conversation_history: true
+
+  - name: ai-prompt-guard
+    route: openrouter-route
     config:
       deny_patterns:
         - "\\b\\d{3}-\\d{2}-\\d{4}\\b"

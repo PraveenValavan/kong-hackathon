@@ -76,6 +76,7 @@ services:
       # Upstream API keys available to request-transformer plugin
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
     ports:
       - "8000:8000"   # proxy
       - "8001:8001"   # admin API

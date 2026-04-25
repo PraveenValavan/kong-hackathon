@@ -151,7 +151,19 @@ curl http://localhost:8001/routes/openai-route/plugins | jq '.data[] | select(.n
 ```
 
 Available roles: `engineering` | `finops` | `admin` | `datascience`  
-Available providers: `anthropic` | `openai`
+Available providers: `anthropic` | `openai` | `openrouter`
+
+For `openrouter`, pass `--model` to choose the model. OpenRouter resolves provider-prefixed model IDs:
+
+```bash
+# Gemini 2.5 Pro Preview
+./scripts/aira-chat.sh "Explain this codebase" --provider openrouter --model google/gemini-2.5-pro-preview
+
+# Any other OpenRouter model — see openrouter.ai/models for IDs
+./scripts/aira-chat.sh "Hello" --provider openrouter --model mistralai/mistral-small-3.1-24b-instruct:free
+```
+
+> **Note:** The `--model` flag is only forwarded for `openrouter`. For `anthropic` and `openai`, the model is set in the Kong `ai-proxy` plugin config.
 
 ## Stop
 
