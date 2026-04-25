@@ -70,7 +70,7 @@ plugins:
       route_type: llm/v1/chat
       auth:
         header_name: Authorization
-        header_value: "Bearer $(OPENAI_API_KEY)"
+        header_value: "{vault://env/OPENAI_API_KEY}"
       model:
         provider: openai
         name: gpt-4o
@@ -84,13 +84,14 @@ plugins:
       route_type: llm/v1/chat
       auth:
         header_name: x-api-key
-        header_value: "$(ANTHROPIC_API_KEY)"
+        header_value: "{vault://env/ANTHROPIC_API_KEY}"
       model:
         provider: anthropic
         name: claude-haiku-4-5-20251001
         options:
           max_tokens: 4096
           temperature: 0.7
+          anthropic_version: "2023-06-01"
 
   # ── Token-Based Rate Limiting (replaces rate-limiting-advanced) ──────────────
   # ai-rate-limiting-advanced counts tokens consumed rather than requests —
@@ -99,24 +100,18 @@ plugins:
   - name: ai-rate-limiting-advanced
     route: openai-route
     config:
-      limit:
-        - 500000
-      window_size:
-        - 3600
-      window_type: sliding
-      tokens_count_strategy: total_tokens
-      sync_rate: -1
+      llm_providers:
+        - name: openai
+          limit: 500000
+          window_size: 3600
 
   - name: ai-rate-limiting-advanced
     route: anthropic-route
     config:
-      limit:
-        - 500000
-      window_size:
-        - 3600
-      window_type: sliding
-      tokens_count_strategy: total_tokens
-      sync_rate: -1
+      llm_providers:
+        - name: anthropic
+          limit: 500000
+          window_size: 3600
 
   # ── PII / Content Guard (replaces planned custom filter) ────────────────────
   # ai-prompt-guard blocks requests matching sensitive data patterns before
