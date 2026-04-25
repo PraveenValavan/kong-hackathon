@@ -133,6 +133,26 @@ curl http://localhost:8001/license
 curl http://localhost:8001/routes/openai-route/plugins | jq '.data[] | select(.name=="ai-rate-limiting-advanced")'
 ```
 
+## Chat Script
+
+`scripts/aira-chat.sh` wraps the token fetch + Kong call into a single command.
+
+**Prerequisites:** Docker stack running, `curl` and `jq` installed.
+
+```bash
+# Default: Anthropic, engineering role
+./scripts/aira-chat.sh "Explain rate limiting"
+
+# OpenAI, finops role
+./scripts/aira-chat.sh "Summarise last month's spend" --provider openai --role finops
+
+# Anthropic, datascience role
+./scripts/aira-chat.sh "What is a transformer model?" --role datascience
+```
+
+Available roles: `engineering` | `finops` | `admin` | `datascience`  
+Available providers: `anthropic` | `openai`
+
 ## Stop
 
 ```bash
