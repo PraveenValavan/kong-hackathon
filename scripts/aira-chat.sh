@@ -22,6 +22,7 @@ CLIENT_SECRET="aira-secret"
 PROVIDER="anthropic"
 ROLE="engineering"
 MODEL=""
+OPENROUTER_DEFAULT_MODEL="google/gemini-2.5-pro-preview"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 MESSAGE=""
@@ -51,6 +52,11 @@ if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
 fi
 
 # ── Build request body ───────────────────────────────────────────────────────
+# For openrouter, default to gemini-2.5-pro-preview if no --model given
+if [[ "$PROVIDER" == "openrouter" && -z "$MODEL" ]]; then
+  MODEL="$OPENROUTER_DEFAULT_MODEL"
+fi
+
 BODY=$(jq -n \
   --argjson content "$(echo "$MESSAGE" | jq -Rs .)" \
   --arg model "$MODEL" \

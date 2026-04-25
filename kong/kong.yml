@@ -114,7 +114,7 @@ plugins:
           - Authorization
       add:
         headers:
-          - "Authorization:Bearer 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"
+          - "Authorization:Bearer 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"
 
   # ── Token-Based Rate Limiting (replaces rate-limiting-advanced) ──────────────
   # ai-rate-limiting-advanced counts tokens consumed rather than requests —
