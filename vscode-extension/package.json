@@ -1,0 +1,55 @@
+{
+  "name": "aira-terminal",
+  "displayName": "AIRA Terminal",
+  "description": "Live token usage, cost tracking, and model switching for Kong AI Gateway",
+  "version": "0.1.0",
+  "publisher": "codeartisans",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aira-container",
+          "title": "AIRA",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "aira-container": [
+        {
+          "type": "webview",
+          "id": "aira.panel",
+          "name": "AIRA Terminal",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "aira.togglePanel",
+        "title": "AIRA: Toggle Panel",
+        "category": "AIRA"
+      },
+      {
+        "command": "aira.refreshData",
+        "title": "AIRA: Refresh Data",
+        "category": "AIRA"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "aira.togglePanel",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a"
+      }
+    ]
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.80.0"
+  }
+}
