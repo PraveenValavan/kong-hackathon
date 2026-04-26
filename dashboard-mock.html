@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIRA — AI Resource & Analytics Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0a0b;
+    --bg1:      #111113;
+    --bg2:      #18181c;
+    --bg3:      #222228;
+    --border:   #2a2a32;
+    --border2:  #38383f;
+    --amber:    #f0a500;
+    --amber-dim:#7a5200;
+    --amber-glow: rgba(240,165,0,0.12);
+    --green:    #22c55e;
+    --green-dim:#14532d;
+    --red:      #ef4444;
+    --red-dim:  #7f1d1d;
+    --blue:     #3b82f6;
+    --purple:   #a855f7;
+    --text:     #e8e8ec;
+    --text2:    #9898a8;
+    --text3:    #555560;
+    --sidebar-w: 220px;
+    --header-h:  56px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* subtle grid texture */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(240,165,0,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,165,0,0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--bg1);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-mark {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--amber);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-mark svg { flex-shrink: 0; }
+  .logo-sub {
+    font-size: 9px;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 3px;
+    padding-left: 2px;
+  }
+
+  .nav { flex: 1; padding: 12px 0; }
+  .nav-section-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 14px 20px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    font-size: 12px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    user-select: none;
+  }
+  .nav-item:hover { color: var(--text); background: var(--bg2); }
+  .nav-item.active {
+    color: var(--amber);
+    background: var(--amber-glow);
+    border-left-color: var(--amber);
+  }
+  .nav-item .nav-icon { width: 14px; opacity: 0.7; flex-shrink: 0; }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .nav-item .badge {
+    margin-left: auto;
+    background: var(--red);
+    color: #fff;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 99px;
+  }
+  .nav-item .badge.warn { background: var(--amber-dim); color: var(--amber); }
+  .nav-item.locked { opacity: 0.35; cursor: not-allowed; }
+  .nav-item.locked:hover { background: none; color: var(--text2); }
+
+  .role-switcher {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .role-label { font-size: 9px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .role-select {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+  }
+  .role-select:focus { border-color: var(--amber); }
+
+  /* ── MAIN ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  .topbar {
+    height: var(--header-h);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .breadcrumb {
+    font-size: 10px;
+    color: var(--text3);
+    margin-left: 4px;
+  }
+  .topbar-spacer { flex: 1; }
+
+  .time-filter {
+    display: flex;
+    gap: 2px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px;
+  }
+  .tf-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border: none;
+    background: none;
+    color: var(--text3);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+  .tf-btn.active { background: var(--bg3); color: var(--amber); }
+  .tf-btn:hover:not(.active) { color: var(--text2); }
+
+  .alert-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: var(--red);
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    animation: pulse-red 2s ease-in-out infinite;
+  }
+  @keyframes pulse-red {
+    0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+    50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
+  }
+  .alert-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
+
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg3) transparent;
+  }
+
+  /* ── KPI ROW ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .kpi-card:hover { border-color: var(--border2); }
+  .kpi-card.highlight { border-color: var(--amber-dim); }
+  .kpi-card.highlight::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--amber-glow);
+    pointer-events: none;
+  }
+  .kpi-card.danger { border-color: rgba(239,68,68,0.4); }
+  .kpi-card.danger::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(239,68,68,0.05);
+    pointer-events: none;
+  }
+  .kpi-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .kpi-card.highlight .kpi-value { color: var(--amber); }
+  .kpi-card.danger .kpi-value { color: var(--red); }
+  .kpi-delta {
+    font-size: 10px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .kpi-delta.up { color: var(--green); }
+  .kpi-delta.down { color: var(--red); }
+  .kpi-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--bg3);
+  }
+  .kpi-bar-fill {
+    height: 100%;
+    background: var(--amber);
+    border-radius: 1px;
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  }
+  .kpi-card.danger .kpi-bar-fill { background: var(--red); }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    margin-top: 6px;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .section-sub { font-size: 10px; color: var(--text3); }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+  .model-filter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  /* ── CHARTS GRID ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .chart-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+  }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .chart-title { font-size: 11px; color: var(--text2); }
+  .chart-total {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .chart-unit { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--text2);
+  }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  svg.chart { overflow: visible; }
+  .chart-area { opacity: 0.15; }
+
+  /* ── FORECAST PANEL ── */
+  .forecast-panel {
+    background: linear-gradient(135deg, #0f0e00 0%, #0a0a0b 60%);
+    border: 1px solid var(--amber-dim);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .forecast-panel::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(240,165,0,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .forecast-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .forecast-badge {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--amber);
+    background: var(--amber-glow);
+    border: 1px solid var(--amber-dim);
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+  .forecast-model { font-size: 9px; color: var(--text3); margin-left: auto; }
+  .forecast-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.8;
+    border-left: 2px solid var(--amber-dim);
+    padding-left: 14px;
+    margin-bottom: 14px;
+  }
+  .forecast-text em { color: var(--amber); font-style: normal; }
+  .forecast-recs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .forecast-rec {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 14px;
+  }
+  .rec-label { font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+  .rec-value { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--amber); }
+  .rec-sub { font-size: 9px; color: var(--text3); margin-top: 3px; }
+
+  /* ── SPEND TABLE ── */
+  .table-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .table-top {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .table-search {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    outline: none;
+    max-width: 240px;
+  }
+  .table-search:focus { border-color: var(--amber); }
+  .export-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .export-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    text-align: left;
+    padding: 10px 20px;
+    background: var(--bg2);
+    font-weight: 400;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg2); }
+  tbody td {
+    padding: 11px 20px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+  tbody td:first-child { color: var(--text); }
+  .budget-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .budget-bar-bg {
+    flex: 1;
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    max-width: 80px;
+  }
+  .budget-bar-fg {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--green);
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  }
+  .budget-bar-fg.warn { background: var(--amber); }
+  .budget-bar-fg.over { background: var(--red); }
+  .status-pill {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    letter-spacing: 0.5px;
+  }
+  .status-pill.ok { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .status-pill.warn { background: rgba(240,165,0,0.1); color: var(--amber); border: 1px solid rgba(240,165,0,0.25); }
+  .status-pill.over { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+
+  /* ── ANOMALY STRIP ── */
+  .anomaly-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .anomaly-item {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 0 4px 4px 0;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text2);
+    transition: background 0.15s;
+  }
+  .anomaly-item:hover { background: var(--bg2); }
+  .anomaly-item.warn { border-left-color: var(--amber); }
+  .anomaly-time { font-size: 10px; color: var(--text3); margin-left: auto; white-space: nowrap; }
+  .anomaly-tag {
+    font-size: 9px;
+    color: var(--red);
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.25);
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+  .anomaly-item.warn .anomaly-tag { color: var(--amber); background: rgba(240,165,0,0.1); border-color: rgba(240,165,0,0.25); }
+
+  /* ── PAGE SECTIONS ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── SCROLLBAR ── */
+  .content::-webkit-scrollbar { width: 4px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+  /* ── FADE IN ── */
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .page.active > * {
+    animation: fade-up 0.3s ease both;
+  }
+  .page.active > *:nth-child(2) { animation-delay: 0.05s; }
+  .page.active > *:nth-child(3) { animation-delay: 0.1s; }
+  .page.active > *:nth-child(4) { animation-delay: 0.15s; }
+  .page.active > *:nth-child(5) { animation-delay: 0.2s; }
+
+  /* ── LOCKED PAGE ── */
+  .locked-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 12px;
+    opacity: 0.5;
+  }
+  .locked-icon { font-size: 36px; }
+  .locked-msg { font-size: 12px; color: var(--text3); }
+
+  /* ── PROVIDER PILLS ── */
+  .provider-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9px; padding: 2px 8px; border-radius: 99px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .provider-pill.openai { background: rgba(59,130,246,0.12); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+  .provider-pill.anthropic { background: rgba(168,85,247,0.12); color: var(--purple); border: 1px solid rgba(168,85,247,0.25); }
+  .provider-pill.gemini { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <rect x="1" y="1" width="7" height="7" rx="1.5" fill="#f0a500"/>
+        <rect x="10" y="1" width="7" height="7" rx="1.5" fill="#f0a500" opacity="0.5"/>
+        <rect x="1" y="10" width="7" height="7" rx="1.5" fill="#f0a500" opacity="0.3"/>
+        <rect x="10" y="10" width="7" height="7" rx="1.5" fill="#f0a500" opacity="0.7"/>
+      </svg>
+      AIRA
+    </div>
+    <div class="logo-sub">AI Resource Analytics</div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-section-label">Monitor</div>
+
+    <div class="nav-item active" data-page="overview">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="1" y="1" width="5" height="5" rx="1"/>
+        <rect x="8" y="1" width="5" height="5" rx="1"/>
+        <rect x="1" y="8" width="5" height="5" rx="1"/>
+        <rect x="8" y="8" width="5" height="5" rx="1"/>
+      </svg>
+      Overview
+    </div>
+
+    <div class="nav-item" data-page="cost">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <polyline points="1,10 4,6 7,8 10,3 13,5"/>
+        <line x1="1" y1="13" x2="13" y2="13"/>
+      </svg>
+      Cost & Usage
+    </div>
+
+    <div class="nav-item" data-page="anomalies">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <path d="M7 2L13 12H1L7 2Z"/>
+        <line x1="7" y1="6" x2="7" y2="9"/>
+        <circle cx="7" cy="10.5" r="0.5" fill="currentColor"/>
+      </svg>
+      Anomalies
+      <span class="badge">3</span>
+    </div>
+
+    <div class="nav-item" data-page="forecast">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <circle cx="7" cy="7" r="5.5"/>
+        <path d="M7 4v3l2 2"/>
+      </svg>
+      AI Forecast
+      <span class="badge warn">NEW</span>
+    </div>
+
+    <div class="nav-section-label">Finance</div>
+
+    <div class="nav-item" data-page="chargeback">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="1" y="3" width="12" height="9" rx="1"/>
+        <line x1="1" y1="6" x2="13" y2="6"/>
+        <line x1="4" y1="9" x2="4" y2="10"/>
+        <line x1="7" y1="9" x2="10" y2="9"/>
+      </svg>
+      Chargeback
+    </div>
+
+    <div class="nav-item" id="nav-logs" data-page="logs">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="2" y="1" width="10" height="12" rx="1"/>
+        <line x1="4" y1="4" x2="10" y2="4"/>
+        <line x1="4" y1="7" x2="10" y2="7"/>
+        <line x1="4" y1="10" x2="7" y2="10"/>
+      </svg>
+      Token Logs
+    </div>
+
+    <div class="nav-section-label">Admin</div>
+
+    <div class="nav-item" id="nav-gov" data-page="governance">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <path d="M7 1l6 3v3c0 3-2.5 5.5-6 6.5C1.5 12.5-.5 10 .5 7V4L7 1Z" stroke="currentColor"/>
+      </svg>
+      Governance
+    </div>
+
+    <div class="nav-item" id="nav-teams" data-page="teams">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <circle cx="5" cy="4" r="2"/>
+        <circle cx="10" cy="5" r="1.5"/>
+        <path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4"/>
+        <path d="M10 8c1.7 0 3 1.3 3 3"/>
+      </svg>
+      Teams & Budgets
+    </div>
+  </nav>
+
+  <div class="role-switcher">
+    <div class="role-label">Viewing as</div>
+    <select class="role-select" id="roleSelect">
+      <option value="finops">FinOps</option>
+      <option value="engineering">Engineering</option>
+      <option value="admin">Admin</option>
+    </select>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="topbar">
+    <span class="page-title" id="pageTitle">Overview</span>
+    <span class="breadcrumb">/ Apr 2026</span>
+    <div class="topbar-spacer"></div>
+    <div class="time-filter">
+      <button class="tf-btn">7d</button>
+      <button class="tf-btn active">30d</button>
+      <button class="tf-btn">90d</button>
+      <button class="tf-btn">All</button>
+    </div>
+    <div class="alert-pill">
+      <div class="alert-dot"></div>
+      R&D over budget
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ OVERVIEW PAGE ══ -->
+    <div class="page active" id="page-overview">
+
+      <!-- KPI Row -->
+      <div class="kpi-row">
+        <div class="kpi-card highlight">
+          <div class="kpi-label">MTD Spend</div>
+          <div class="kpi-value">$4,821</div>
+          <div class="kpi-delta up">↑ 23% vs last month</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill" style="width:72%"></div></div>
+        </div>
+        <div class="kpi-card danger">
+          <div class="kpi-label">Budget Remaining</div>
+          <div class="kpi-value">−$321</div>
+          <div class="kpi-delta down">R&D exceeded $4,500 cap</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill" style="width:100%"></div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Requests</div>
+          <div class="kpi-value">18,492</div>
+          <div class="kpi-delta up">↑ 11% vs last month</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill" style="width:44%"></div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">EOM Forecast</div>
+          <div class="kpi-value">$7,240</div>
+          <div class="kpi-delta down">↑ 44% over budget</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill" style="width:88%"></div></div>
+        </div>
+      </div>
+
+      <!-- Spend over time -->
+      <div class="section-header">
+        <span class="section-title">Spend over time</span>
+        <div class="section-line"></div>
+        <select class="model-filter">
+          <option>All Providers</option>
+          <option>OpenAI</option>
+          <option>Anthropic</option>
+          <option>Gemini</option>
+        </select>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card wide">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Daily Cost (USD)</div>
+              <div class="chart-total">$4,821.34</div>
+              <div class="chart-unit">April 2026 cumulative</div>
+            </div>
+          </div>
+          <svg class="chart" width="100%" height="140" viewBox="0 0 820 140" preserveAspectRatio="none" id="mainChart">
+            <defs>
+              <linearGradient id="amberGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f0a500" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#f0a500" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="purpleGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#a855f7" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <!-- Grid lines -->
+            <line x1="0" y1="35" x2="820" y2="35" stroke="#2a2a32" stroke-width="1"/>
+            <line x1="0" y1="70" x2="820" y2="70" stroke="#2a2a32" stroke-width="1"/>
+            <line x1="0" y1="105" x2="820" y2="105" stroke="#2a2a32" stroke-width="1"/>
+            <!-- Labels -->
+            <text x="0" y="33" fill="#555560" font-size="9" font-family="IBM Plex Mono">$250</text>
+            <text x="0" y="68" fill="#555560" font-size="9" font-family="IBM Plex Mono">$150</text>
+            <text x="0" y="103" fill="#555560" font-size="9" font-family="IBM Plex Mono">$50</text>
+            <!-- Anthropic area + line -->
+            <path id="areaAnthr" d="" fill="url(#purpleGrad)" class="chart-area"/>
+            <path id="lineAnthr" d="" fill="none" stroke="#a855f7" stroke-width="1.5"/>
+            <!-- OpenAI area + line -->
+            <path id="areaOAI" d="" fill="url(#blueGrad)" class="chart-area"/>
+            <path id="lineOAI" d="" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+            <!-- Gemini area + line -->
+            <path id="areaGem" d="" fill="url(#amberGrad)" class="chart-area"/>
+            <path id="lineGem" d="" fill="none" stroke="#f0a500" stroke-width="2" stroke-dasharray="none"/>
+            <!-- Budget line -->
+            <line x1="20" y1="21" x2="800" y2="21" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,4" opacity="0.6"/>
+            <text x="804" y="24" fill="#ef4444" font-size="8" font-family="IBM Plex Mono">cap</text>
+          </svg>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#f0a500"></div>Gemini</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>OpenAI</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>Anthropic</div>
+            <div class="legend-item" style="margin-left:8px"><div class="legend-dot" style="background:#ef4444;border-radius:0;height:1px;width:14px;margin:3px 0"></div>Budget cap</div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Requests per Model</div>
+              <div class="chart-total">18,492</div>
+            </div>
+          </div>
+          <svg class="chart" width="100%" height="120" viewBox="0 0 380 120" preserveAspectRatio="none">
+            <!-- Bar chart -->
+            <g id="barChart"></g>
+            <line x1="0" y1="110" x2="380" y2="110" stroke="#2a2a32" stroke-width="1"/>
+          </svg>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#f0a500"></div>gemini-2.5-flash</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>gpt-4o</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>claude-haiku</div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Input Tokens per Provider</div>
+              <div class="chart-total">84.2M</div>
+            </div>
+          </div>
+          <svg class="chart" width="100%" height="120" viewBox="0 0 380 120" preserveAspectRatio="none">
+            <!-- donut-ish -->
+            <circle cx="60" cy="60" r="45" fill="none" stroke="#1a1a20" stroke-width="18"/>
+            <circle cx="60" cy="60" r="45" fill="none" stroke="#f0a500" stroke-width="18"
+              stroke-dasharray="141 142" stroke-dashoffset="0" stroke-linecap="butt" transform="rotate(-90 60 60)"/>
+            <circle cx="60" cy="60" r="45" fill="none" stroke="#3b82f6" stroke-width="18"
+              stroke-dasharray="72 142" stroke-dashoffset="-141" stroke-linecap="butt" transform="rotate(-90 60 60)"/>
+            <circle cx="60" cy="60" r="45" fill="none" stroke="#a855f7" stroke-width="18"
+              stroke-dasharray="70 142" stroke-dashoffset="-213" stroke-linecap="butt" transform="rotate(-90 60 60)"/>
+            <text x="60" y="57" text-anchor="middle" fill="#e8e8ec" font-family="Syne,sans-serif" font-size="13" font-weight="700">84.2M</text>
+            <text x="60" y="70" text-anchor="middle" fill="#555560" font-family="IBM Plex Mono" font-size="8">tokens</text>
+            <!-- stats -->
+            <text x="135" y="30" fill="#9898a8" font-family="IBM Plex Mono" font-size="9">Gemini</text>
+            <text x="135" y="43" fill="#f0a500" font-family="Syne,sans-serif" font-size="14" font-weight="700">50%</text>
+            <text x="135" y="70" fill="#9898a8" font-family="IBM Plex Mono" font-size="9">OpenAI</text>
+            <text x="135" y="83" fill="#3b82f6" font-family="Syne,sans-serif" font-size="14" font-weight="700">25%</text>
+            <text x="230" y="30" fill="#9898a8" font-family="IBM Plex Mono" font-size="9">Anthropic</text>
+            <text x="230" y="43" fill="#a855f7" font-family="Syne,sans-serif" font-size="14" font-weight="700">25%</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Team spend table -->
+      <div class="section-header">
+        <span class="section-title">Spend by team</span>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-top">
+          <input class="table-search" placeholder="Filter teams...">
+          <button class="export-btn">↓ Export CSV</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Team</th>
+              <th>Department</th>
+              <th>Requests</th>
+              <th>Tokens (M)</th>
+              <th>Spend</th>
+              <th>Budget</th>
+              <th>Utilisation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nlp-platform</td>
+              <td>R&D</td>
+              <td>7,821</td>
+              <td>34.2</td>
+              <td>$2,134</td>
+              <td>$1,800</td>
+              <td><div class="budget-bar-wrap"><div class="budget-bar-bg"><div class="budget-bar-fg over" style="width:100%"></div></div>118%</div></td>
+              <td><span class="status-pill over">Over budget</span></td>
+            </tr>
+            <tr>
+              <td>data-science</td>
+              <td>R&D</td>
+              <td>5,412</td>
+              <td>28.1</td>
+              <td>$1,890</td>
+              <td>$2,500</td>
+              <td><div class="budget-bar-wrap"><div class="budget-bar-bg"><div class="budget-bar-fg warn" style="width:76%"></div></div>76%</div></td>
+              <td><span class="status-pill warn">Watch</span></td>
+            </tr>
+            <tr>
+              <td>platform</td>
+              <td>Engineering</td>
+              <td>3,102</td>
+              <td>12.4</td>
+              <td>$512</td>
+              <td>$1,000</td>
+              <td><div class="budget-bar-wrap"><div class="budget-bar-bg"><div class="budget-bar-fg" style="width:51%"></div></div>51%</div></td>
+              <td><span class="status-pill ok">On track</span></td>
+            </tr>
+            <tr>
+              <td>finance</td>
+              <td>Finance</td>
+              <td>2,157</td>
+              <td>9.5</td>
+              <td>$285</td>
+              <td>$500</td>
+              <td><div class="budget-bar-wrap"><div class="budget-bar-bg"><div class="budget-bar-fg" style="width:57%"></div></div>57%</div></td>
+              <td><span class="status-pill ok">On track</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /overview -->
+
+    <!-- ══ COST & USAGE PAGE ══ -->
+    <div class="page" id="page-cost">
+      <div class="kpi-row">
+        <div class="kpi-card highlight">
+          <div class="kpi-label">Total Cost</div>
+          <div class="kpi-value">$4,821</div>
+          <div class="kpi-delta up">↑ 23%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Cost / Request</div>
+          <div class="kpi-value">$0.26</div>
+          <div class="kpi-delta down">↓ 4% — model mix improving</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Output Tokens</div>
+          <div class="kpi-value">21.3M</div>
+          <div class="kpi-delta up">↑ 18%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Blocked Requests</div>
+          <div class="kpi-value">47</div>
+          <div class="kpi-delta">PII guard triggers</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <span class="section-title">Cost by user</span>
+        <div class="section-line"></div>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Team</th>
+              <th>Requests</th>
+              <th>Input Tokens</th>
+              <th>Output Tokens</th>
+              <th>Total Cost</th>
+              <th>Top Provider</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>engineer-001</td><td>nlp-platform</td><td>3,241</td><td>14.2M</td><td>8.1M</td><td>$892.40</td><td><span class="provider-pill anthropic">Anthropic</span></td></tr>
+            <tr><td>ds-lead-007</td><td>data-science</td><td>2,810</td><td>12.8M</td><td>6.2M</td><td>$743.20</td><td><span class="provider-pill openai">OpenAI</span></td></tr>
+            <tr><td>engineer-003</td><td>nlp-platform</td><td>2,104</td><td>9.1M</td><td>4.4M</td><td>$521.10</td><td><span class="provider-pill gemini">Gemini</span></td></tr>
+            <tr><td>finops-001</td><td>finance</td><td>1,820</td><td>8.2M</td><td>3.9M</td><td>$285.00</td><td><span class="provider-pill gemini">Gemini</span></td></tr>
+            <tr><td>platform-002</td><td>platform</td><td>1,421</td><td>5.8M</td><td>2.1M</td><td>$189.40</td><td><span class="provider-pill openai">OpenAI</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ ANOMALIES PAGE ══ -->
+    <div class="page" id="page-anomalies">
+      <div class="kpi-row">
+        <div class="kpi-card danger">
+          <div class="kpi-label">Active Anomalies</div>
+          <div class="kpi-value">3</div>
+          <div class="kpi-delta down">2 critical, 1 warning</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">PII Blocks (24h)</div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-delta up">↑ 4 vs yesterday</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Rate Limit Hits</div>
+          <div class="kpi-value">89</div>
+          <div class="kpi-delta">500k token/hr cap</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Spike Threshold</div>
+          <div class="kpi-value">3×</div>
+          <div class="kpi-delta">normal usage trigger</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <span class="section-title">Anomaly feed</span>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="anomaly-strip">
+        <div class="anomaly-item">
+          <span class="anomaly-tag">CRITICAL</span>
+          <span><strong style="color:var(--text)">nlp-platform</strong> — 4.2× normal token usage in the last hour (42,800 tokens/min vs baseline 10,200). Possible prompt injection or runaway loop.</span>
+          <span class="anomaly-time">07:03 UTC</span>
+        </div>
+        <div class="anomaly-item">
+          <span class="anomaly-tag">CRITICAL</span>
+          <span><strong style="color:var(--text)">R&D department</strong> — Monthly budget cap of $4,500 exceeded. Current spend: $4,821. Kong is now rate-limiting new requests for this consumer.</span>
+          <span class="anomaly-time">06:48 UTC</span>
+        </div>
+        <div class="anomaly-item warn">
+          <span class="anomaly-tag" style="color:var(--amber);background:rgba(240,165,0,0.1);border-color:rgba(240,165,0,0.25)">WARN</span>
+          <span><strong style="color:var(--text)">data-science</strong> — At 76% of $2,500 budget with 12 days remaining. Projected to exceed by ~$340 at current rate.</span>
+          <span class="anomaly-time">06:00 UTC</span>
+        </div>
+        <div class="anomaly-item warn">
+          <span class="anomaly-tag" style="color:var(--amber);background:rgba(240,165,0,0.1);border-color:rgba(240,165,0,0.25)">INFO</span>
+          <span><strong style="color:var(--text)">12 PII guard blocks</strong> — SSN and credit card patterns detected and blocked in the last 24h. Top offender: engineer-001 (7 blocks).</span>
+          <span class="anomaly-time">00:00 UTC</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FORECAST PAGE ══ -->
+    <div class="page" id="page-forecast">
+      <div class="forecast-panel">
+        <div class="forecast-header">
+          <div class="forecast-badge">Claude AI Forecast</div>
+          <span class="forecast-model">claude-sonnet-4-6 · generated 07:10 UTC</span>
+        </div>
+        <div class="forecast-text">
+          At the current burn rate of <em>$321/day</em>, AIRA projects <em>$7,240</em> in total April spend — <em>61% over the $4,500 budget</em>. The primary driver is the <em>nlp-platform team</em>, whose token usage spiked 4× this week, likely due to long-context batch jobs against <em>claude-haiku-4-5</em>. Switching this workload to <em>gemini-2.5-flash</em> would reduce cost by approximately <em>$840/month</em> with comparable output quality for summarisation tasks. The <em>data-science team</em> is on track to exceed its budget by <em>$340</em>; a 20% token reduction or budget increase is recommended before Apr 28.
+        </div>
+        <div class="forecast-recs">
+          <div class="forecast-rec">
+            <div class="rec-label">Projected EOM</div>
+            <div class="rec-value">$7,240</div>
+            <div class="rec-sub">vs $4,500 budget</div>
+          </div>
+          <div class="forecast-rec">
+            <div class="rec-label">Potential Saving</div>
+            <div class="rec-value">$840/mo</div>
+            <div class="rec-sub">switch nlp → gemini-2.5-flash</div>
+          </div>
+          <div class="forecast-rec">
+            <div class="rec-label">Risk Teams</div>
+            <div class="rec-value">2 of 4</div>
+            <div class="rec-sub">nlp-platform (over), data-science (watch)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <span class="section-title">30-day projection by team</span>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card wide">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Projected vs Actual vs Budget</div>
+              <div class="chart-total">$7,240 EOM</div>
+            </div>
+          </div>
+          <svg class="chart" width="100%" height="140" viewBox="0 0 820 140" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f0a500" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="#f0a500" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="35" x2="820" y2="35" stroke="#2a2a32" stroke-width="1"/>
+            <line x1="0" y1="70" x2="820" y2="70" stroke="#2a2a32" stroke-width="1"/>
+            <line x1="0" y1="105" x2="820" y2="105" stroke="#2a2a32" stroke-width="1"/>
+            <!-- Actual line (solid) -->
+            <polyline points="20,115 100,100 180,88 260,75 340,60 420,48 490,38" fill="none" stroke="#22c55e" stroke-width="2"/>
+            <!-- Projection (dashed) -->
+            <polyline points="490,38 560,25 630,15 700,5 820,0" fill="none" stroke="#f0a500" stroke-width="2" stroke-dasharray="5,3"/>
+            <!-- Budget cap -->
+            <line x1="20" y1="55" x2="820" y2="55" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,4" opacity="0.6"/>
+            <text x="804" y="52" fill="#ef4444" font-size="8" font-family="IBM Plex Mono">$4,500</text>
+            <!-- Today marker -->
+            <line x1="490" y1="10" x2="490" y2="130" stroke="#555560" stroke-width="1" stroke-dasharray="2,3"/>
+            <text x="494" y="22" fill="#555560" font-size="8" font-family="IBM Plex Mono">today</text>
+          </svg>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Actual</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f0a500"></div>Forecast</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444;border-radius:0;height:1px;width:14px;margin:3px 0"></div>Budget cap</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CHARGEBACK PAGE ══ -->
+    <div class="page" id="page-chargeback">
+      <div class="section-header">
+        <span class="section-title">Chargeback Report — April 2026</span>
+        <div class="section-line"></div>
+        <button class="export-btn">↓ Export CSV</button>
+        <button class="export-btn">↓ Export PDF</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Department</th>
+              <th>Team</th>
+              <th>Requests</th>
+              <th>Tokens (M)</th>
+              <th>Gross Cost</th>
+              <th>Budget</th>
+              <th>Variance</th>
+              <th>Charge Code</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>R&D</td><td>nlp-platform</td><td>7,821</td><td>34.2</td>
+              <td style="color:var(--text)">$2,134.00</td>
+              <td>$1,800.00</td>
+              <td style="color:var(--red)">+$334.00</td>
+              <td style="color:var(--text3)">CC-RD-NLP-2604</td>
+            </tr>
+            <tr>
+              <td>R&D</td><td>data-science</td><td>5,412</td><td>28.1</td>
+              <td style="color:var(--text)">$1,890.00</td>
+              <td>$2,500.00</td>
+              <td style="color:var(--amber)">−$610.00</td>
+              <td style="color:var(--text3)">CC-RD-DS-2604</td>
+            </tr>
+            <tr>
+              <td>Engineering</td><td>platform</td><td>3,102</td><td>12.4</td>
+              <td style="color:var(--text)">$512.00</td>
+              <td>$1,000.00</td>
+              <td style="color:var(--green)">−$488.00</td>
+              <td style="color:var(--text3)">CC-ENG-PLT-2604</td>
+            </tr>
+            <tr>
+              <td>Finance</td><td>finance</td><td>2,157</td><td>9.5</td>
+              <td style="color:var(--text)">$285.00</td>
+              <td>$500.00</td>
+              <td style="color:var(--green)">−$215.00</td>
+              <td style="color:var(--text3)">CC-FIN-FIN-2604</td>
+            </tr>
+            <tr style="background:var(--bg2)">
+              <td style="color:var(--amber);font-weight:600">TOTAL</td><td>—</td><td>18,492</td><td>84.2</td>
+              <td style="color:var(--amber);font-weight:600">$4,821.00</td>
+              <td style="color:var(--text)">$5,800.00</td>
+              <td style="color:var(--amber)">−$979.00</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ TOKEN LOGS PAGE ══ -->
+    <div class="page" id="page-logs">
+      <div class="section-header">
+        <span class="section-title">Token Logs</span>
+        <div class="section-line"></div>
+        <input class="table-search" placeholder="Filter by user, session..." style="max-width:200px">
+        <select class="model-filter"><option>All Providers</option><option>OpenAI</option><option>Anthropic</option><option>Gemini</option></select>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Provider</th>
+              <th>Model</th>
+              <th>In Tokens</th>
+              <th>Out Tokens</th>
+              <th>Cost</th>
+              <th>Session ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="color:var(--text3)">07:03:42</td><td>engineer-001</td><td><span class="provider-pill anthropic">Anthropic</span></td><td>claude-haiku-4-5</td><td>12,841</td><td>3,210</td><td>$0.041</td><td style="color:var(--text3)">a4f2…9c1b</td></tr>
+            <tr><td style="color:var(--text3)">07:01:18</td><td>ds-lead-007</td><td><span class="provider-pill openai">OpenAI</span></td><td>gpt-4o</td><td>4,102</td><td>1,840</td><td>$0.072</td><td style="color:var(--text3)">b8e1…3d0a</td></tr>
+            <tr><td style="color:var(--text3)">06:58:33</td><td>engineer-003</td><td><span class="provider-pill gemini">Gemini</span></td><td>gemini-2.5-flash</td><td>8,200</td><td>2,100</td><td>$0.008</td><td style="color:var(--text3)">c2a9…f7e2</td></tr>
+            <tr><td style="color:var(--text3)">06:55:01</td><td>engineer-001</td><td><span class="provider-pill anthropic">Anthropic</span></td><td>claude-haiku-4-5</td><td>15,920</td><td>4,812</td><td>$0.059</td><td style="color:var(--text3)">a4f2…9c1b</td></tr>
+            <tr><td style="color:var(--text3)">06:52:17</td><td>finops-001</td><td><span class="provider-pill gemini">Gemini</span></td><td>gemini-2.5-flash</td><td>2,100</td><td>840</td><td>$0.003</td><td style="color:var(--text3)">d1b3…8f4c</td></tr>
+            <tr><td style="color:var(--text3)">06:48:55</td><td>platform-002</td><td><span class="provider-pill openai">OpenAI</span></td><td>gpt-4o</td><td>6,400</td><td>2,200</td><td>$0.098</td><td style="color:var(--text3)">e9c4…2a1d</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ GOVERNANCE PAGE ══ -->
+    <div class="page" id="page-governance">
+      <div class="locked-page" id="gov-locked" style="display:none">
+        <div class="locked-icon">🔒</div>
+        <div class="locked-msg">Governance requires Admin role</div>
+      </div>
+      <div id="gov-content">
+        <div class="kpi-row">
+          <div class="kpi-card"><div class="kpi-label">Active Consumers</div><div class="kpi-value">4</div><div class="kpi-delta">Teams configured in Kong</div></div>
+          <div class="kpi-card"><div class="kpi-label">Rate Limit Policy</div><div class="kpi-value">500k</div><div class="kpi-delta">tokens/hour per route</div></div>
+          <div class="kpi-card"><div class="kpi-label">PII Guard Rules</div><div class="kpi-value">3</div><div class="kpi-delta">SSN, card, credential patterns</div></div>
+          <div class="kpi-card highlight"><div class="kpi-label">OIDC Provider</div><div class="kpi-value">Mock</div><div class="kpi-delta">mock-oauth2 :8080</div></div>
+        </div>
+        <div class="section-header"><span class="section-title">RBAC Matrix</span><div class="section-line"></div></div>
+        <div class="table-card">
+          <table>
+            <thead><tr><th>Permission</th><th>FinOps</th><th>Engineering</th><th>Admin</th></tr></thead>
+            <tbody>
+              <tr><td>View Overview</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td></tr>
+              <tr><td>View Chargeback</td><td style="color:var(--green)">✓</td><td style="color:var(--text3)">—</td><td style="color:var(--green)">✓</td></tr>
+              <tr><td>Export Reports</td><td style="color:var(--green)">✓</td><td style="color:var(--text3)">—</td><td style="color:var(--green)">✓</td></tr>
+              <tr><td>View Token Logs</td><td style="color:var(--text3)">—</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td></tr>
+              <tr><td>View Anomalies</td><td style="color:var(--text3)">—</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td></tr>
+              <tr><td>Manage Budgets</td><td style="color:var(--text3)">—</td><td style="color:var(--text3)">—</td><td style="color:var(--green)">✓</td></tr>
+              <tr><td>Configure RBAC</td><td style="color:var(--text3)">—</td><td style="color:var(--text3)">—</td><td style="color:var(--green)">✓</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TEAMS PAGE ══ -->
+    <div class="page" id="page-teams">
+      <div class="locked-page" id="teams-locked" style="display:none">
+        <div class="locked-icon">🔒</div>
+        <div class="locked-msg">Teams & Budgets requires Admin role</div>
+      </div>
+      <div id="teams-content">
+        <div class="section-header"><span class="section-title">Budget Configuration</span><div class="section-line"></div></div>
+        <div class="table-card">
+          <table>
+            <thead><tr><th>Team</th><th>Department</th><th>Monthly Budget</th><th>Enforcement</th><th>Alert Threshold</th><th>Kong Consumer</th></tr></thead>
+            <tbody>
+              <tr><td>nlp-platform</td><td>R&D</td><td style="color:var(--amber)">$1,800</td><td><span class="status-pill over">Hard cap (429)</span></td><td>80%</td><td style="color:var(--text3)">consumer-nlp</td></tr>
+              <tr><td>data-science</td><td>R&D</td><td style="color:var(--amber)">$2,500</td><td><span class="status-pill ok">Soft warn</span></td><td>80%</td><td style="color:var(--text3)">consumer-ds</td></tr>
+              <tr><td>platform</td><td>Engineering</td><td style="color:var(--amber)">$1,000</td><td><span class="status-pill ok">Soft warn</span></td><td>90%</td><td style="color:var(--text3)">consumer-eng</td></tr>
+              <tr><td>finance</td><td>Finance</td><td style="color:var(--amber)">$500</td><td><span class="status-pill ok">Soft warn</span></td><td>80%</td><td style="color:var(--text3)">consumer-fin</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+  // ── NAV ──
+  const pages = {
+    overview:   { title: 'Overview',       el: 'page-overview' },
+    cost:       { title: 'Cost & Usage',   el: 'page-cost' },
+    anomalies:  { title: 'Anomalies',      el: 'page-anomalies' },
+    forecast:   { title: 'AI Forecast',    el: 'page-forecast' },
+    chargeback: { title: 'Chargeback',     el: 'page-chargeback' },
+    logs:       { title: 'Token Logs',     el: 'page-logs' },
+    governance: { title: 'Governance',     el: 'page-governance' },
+    teams:      { title: 'Teams & Budgets',el: 'page-teams' },
+  };
+
+  const roleAccess = {
+    finops:      ['overview','cost','chargeback','forecast'],
+    engineering: ['overview','cost','anomalies','forecast','logs'],
+    admin:       ['overview','cost','anomalies','forecast','chargeback','logs','governance','teams'],
+  };
+
+  let currentRole = 'finops';
+  let currentPage = 'overview';
+
+  function navigate(pageKey) {
+    const access = roleAccess[currentRole];
+    currentPage = pageKey;
+
+    document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+      el.classList.toggle('active', el.dataset.page === pageKey);
+    });
+
+    Object.entries(pages).forEach(([key, cfg]) => {
+      const el = document.getElementById(cfg.el);
+      if (el) el.classList.toggle('active', key === pageKey);
+    });
+
+    document.getElementById('pageTitle').textContent = pages[pageKey]?.title || pageKey;
+
+    // governance / teams lock
+    const govLock = document.getElementById('gov-locked');
+    const govContent = document.getElementById('gov-content');
+    if (govLock && govContent) {
+      const locked = !access.includes('governance');
+      govLock.style.display = locked ? 'flex' : 'none';
+      govContent.style.display = locked ? 'none' : 'block';
+    }
+    const teamsLock = document.getElementById('teams-locked');
+    const teamsContent = document.getElementById('teams-content');
+    if (teamsLock && teamsContent) {
+      const locked = !access.includes('teams');
+      teamsLock.style.display = locked ? 'flex' : 'none';
+      teamsContent.style.display = locked ? 'none' : 'block';
+    }
+  }
+
+  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+    item.addEventListener('click', () => navigate(item.dataset.page));
+  });
+
+  document.getElementById('roleSelect').addEventListener('change', function() {
+    currentRole = this.value;
+    applyRoleVisibility();
+    navigate(currentPage);
+  });
+
+  function applyRoleVisibility() {
+    const access = roleAccess[currentRole];
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+      const allowed = access.includes(item.dataset.page);
+      item.classList.toggle('locked', !allowed);
+    });
+  }
+
+  // time filter
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // ── CHARTS ──
+  function buildMainChart() {
+    const W = 820, H = 140, pad = 20, top = 10, bot = 120;
+    const days = 26;
+    // fake data
+    const gem   = Array.from({length:days}, (_,i) => 30 + Math.sin(i*0.4)*18 + i*1.8 + Math.random()*10);
+    const oai   = Array.from({length:days}, (_,i) => 20 + Math.cos(i*0.3)*12 + i*1.2 + Math.random()*8);
+    const anthr = Array.from({length:days}, (_,i) => 15 + Math.sin(i*0.5)*8  + i*0.9 + Math.random()*6);
+
+    const maxV = 280;
+    const xScale = i => pad + (i / (days-1)) * (W - pad*2);
+    const yScale = v => top + (bot - top) * (1 - v/maxV);
+
+    function toPolyline(data) {
+      return data.map((v,i) => `${xScale(i)},${yScale(v)}`).join(' ');
+    }
+    function toArea(data) {
+      const pts = data.map((v,i) => `${xScale(i)},${yScale(v)}`).join(' ');
+      return `M ${xScale(0)},${yScale(0)} L ${pts.replace(/(\d+\.?\d*),(\d+\.?\d*)/g, (_, x, y) => `${x},${y}`)} L ${xScale(days-1)},${yScale(0)} Z`;
+    }
+
+    function buildPath(data) {
+      return data.map((v,i) => (i===0?'M':'L') + ` ${xScale(i).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ');
+    }
+    function buildArea(data) {
+      return buildPath(data) + ` L ${xScale(days-1).toFixed(1)},${bot} L ${xScale(0).toFixed(1)},${bot} Z`;
+    }
+
+    document.getElementById('lineGem').setAttribute('d', buildPath(gem));
+    document.getElementById('areaGem').setAttribute('d', buildArea(gem));
+    document.getElementById('lineOAI').setAttribute('d', buildPath(oai));
+    document.getElementById('areaOAI').setAttribute('d', buildArea(oai));
+    document.getElementById('lineAnthr').setAttribute('d', buildPath(anthr));
+    document.getElementById('areaAnthr').setAttribute('d', buildArea(anthr));
+  }
+
+  function buildBarChart() {
+    const g = document.getElementById('barChart');
+    const data = [
+      { label: 'gemini', val: 9240, color: '#f0a500' },
+      { label: 'gpt-4o', val: 5820, color: '#3b82f6' },
+      { label: 'haiku', val: 3432, color: '#a855f7' },
+    ];
+    const maxV = 10000;
+    const barW = 60, gap = 40, startX = 40;
+    data.forEach((d, i) => {
+      const h = (d.val / maxV) * 95;
+      const x = startX + i * (barW + gap);
+      const y = 110 - h;
+      g.innerHTML += `
+        <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="${d.color}" opacity="0.8"/>
+        <text x="${x + barW/2}" y="108" text-anchor="middle" fill="#555560" font-size="8" font-family="IBM Plex Mono">${d.label}</text>
+        <text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" fill="${d.color}" font-size="9" font-family="Syne,sans-serif" font-weight="700">${(d.val/1000).toFixed(1)}k</text>
+      `;
+    });
+  }
+
+  buildMainChart();
+  buildBarChart();
+  applyRoleVisibility();
+</script>
+</body>
+</html>
