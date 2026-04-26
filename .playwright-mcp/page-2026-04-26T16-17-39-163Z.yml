@@ -1,0 +1,103 @@
+- generic [active] [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - img [ref=e5]
+        - text: AIRA
+      - generic [ref=e10]: AI Resource Analytics
+    - navigation [ref=e11]:
+      - generic [ref=e12]: Monitor
+      - generic [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+        - text: Overview
+      - generic [ref=e19] [cursor=pointer]:
+        - img [ref=e20]
+        - text: Cost & Usage
+      - generic [ref=e22]:
+        - img [ref=e23]
+        - text: Anomalies
+        - generic [ref=e26]: "3"
+      - generic [ref=e27] [cursor=pointer]:
+        - img [ref=e28]
+        - text: AI Forecast
+        - generic [ref=e31]: NEW
+      - generic [ref=e32]: Finance
+      - generic [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+        - text: Chargeback
+      - generic [ref=e36]:
+        - img [ref=e37]
+        - text: Token Logs
+      - generic [ref=e39]: Admin
+      - generic [ref=e40]:
+        - img [ref=e41]
+        - text: Governance
+      - generic [ref=e43]:
+        - img [ref=e44]
+        - text: Teams & Budgets
+    - generic [ref=e49]:
+      - generic [ref=e50]: Viewing as
+      - combobox [ref=e51] [cursor=pointer]:
+        - option "FinOps" [selected]
+        - option "Engineering"
+        - option "Admin"
+  - main [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: AI Forecast
+      - generic [ref=e55]: / Apr 2026
+      - generic [ref=e56]:
+        - button "7d" [ref=e57] [cursor=pointer]
+        - button "30d" [ref=e58] [cursor=pointer]
+        - button "90d" [ref=e59] [cursor=pointer]
+        - button "All" [ref=e60] [cursor=pointer]
+      - generic [ref=e61]: R&D over budget
+    - generic [ref=e128]:
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - generic [ref=e131]: Claude AI Forecast
+          - generic [ref=e132]: claude-sonnet-4-6 · generated 07:10 UTC
+        - generic [ref=e133]:
+          - text: At the current burn rate of
+          - emphasis [ref=e134]: $321/day
+          - text: ", AIRA projects"
+          - emphasis [ref=e135]: $7,240
+          - text: in total April spend —
+          - emphasis [ref=e136]: 61% over the $4,500 budget
+          - text: . The primary driver is the
+          - emphasis [ref=e137]: nlp-platform team
+          - text: ", whose token usage spiked 4× this week, likely due to long-context batch jobs against"
+          - emphasis [ref=e138]: claude-haiku-4-5
+          - text: . Switching this workload to
+          - emphasis [ref=e139]: gemini-2.5-flash
+          - text: would reduce cost by approximately
+          - emphasis [ref=e140]: $840/month
+          - text: with comparable output quality for summarisation tasks. The
+          - emphasis [ref=e141]: data-science team
+          - text: is on track to exceed its budget by
+          - emphasis [ref=e142]: $340
+          - text: ; a 20% token reduction or budget increase is recommended before Apr 28.
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - generic [ref=e145]: Projected EOM
+            - generic [ref=e146]: $7,240
+            - generic [ref=e147]: vs $4,500 budget
+          - generic [ref=e148]:
+            - generic [ref=e149]: Potential Saving
+            - generic [ref=e150]: $840/mo
+            - generic [ref=e151]: switch nlp → gemini-2.5-flash
+          - generic [ref=e152]:
+            - generic [ref=e153]: Risk Teams
+            - generic [ref=e154]: 2 of 4
+            - generic [ref=e155]: nlp-platform (over), data-science (watch)
+      - generic [ref=e157]: 30-day projection by team
+      - generic [ref=e160]:
+        - generic [ref=e162]:
+          - generic [ref=e163]: Projected vs Actual vs Budget
+          - generic [ref=e164]: $7,240 EOM
+        - img [ref=e165]:
+          - generic [ref=e168]: $4,500
+          - generic [ref=e169]: today
+        - generic [ref=e170]:
+          - generic [ref=e171]: Actual
+          - generic [ref=e173]: Forecast
+          - generic [ref=e175]: Budget cap

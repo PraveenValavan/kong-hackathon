@@ -123,7 +123,8 @@ You are a FinOps analyst. Given this AI cost data for [org/department]:
 - Spend to date: $X
 - Budget: $Y  
 - Days remaining: Z
-- Daily burn rate: $A/day
+- Daily burn rate: $A/day (computed as total_cost_usd / days elapsed this month)
+- Days remaining: computed server-side from `datetime.date.today()` vs. last day of current month
 - Top cost driver: model M at $B
 - By team: [table]
 
@@ -193,6 +194,8 @@ A small `<script>` block on the page swaps the panel content on `change`.
 // vite.config.js
 export default { server: { proxy: { '/api': 'http://localhost:8002' } } }
 ```
+
+`client.js` fetch wrapper uses base URL `/api` in dev (proxied) and `http://localhost:8002` directly in production builds (configurable via `VITE_API_BASE` env var).
 
 ---
 

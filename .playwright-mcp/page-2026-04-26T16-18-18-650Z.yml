@@ -1,0 +1,115 @@
+- generic [active] [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - img [ref=e5]
+        - text: AIRA
+      - generic [ref=e10]: AI Resource Analytics
+    - navigation [ref=e11]:
+      - generic [ref=e12]: Monitor
+      - generic [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+        - text: Overview
+      - generic [ref=e19] [cursor=pointer]:
+        - img [ref=e20]
+        - text: Cost & Usage
+      - generic [ref=e22] [cursor=pointer]:
+        - img [ref=e23]
+        - text: Anomalies
+        - generic [ref=e26]: "3"
+      - generic [ref=e27] [cursor=pointer]:
+        - img [ref=e28]
+        - text: AI Forecast
+        - generic [ref=e31]: NEW
+      - generic [ref=e32]: Finance
+      - generic [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+        - text: Chargeback
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+        - text: Token Logs
+      - generic [ref=e39]: Admin
+      - generic [ref=e40] [cursor=pointer]:
+        - img [ref=e41]
+        - text: Governance
+      - generic [ref=e43] [cursor=pointer]:
+        - img [ref=e44]
+        - text: Teams & Budgets
+    - generic [ref=e49]:
+      - generic [ref=e50]: Viewing as
+      - combobox [ref=e51] [cursor=pointer]:
+        - option "FinOps"
+        - option "Engineering"
+        - option "Admin" [selected]
+  - main [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: Governance
+      - generic [ref=e55]: / Apr 2026
+      - generic [ref=e56]:
+        - button "7d" [ref=e57] [cursor=pointer]
+        - button "30d" [ref=e58] [cursor=pointer]
+        - button "90d" [ref=e59] [cursor=pointer]
+        - button "All" [ref=e60] [cursor=pointer]
+      - generic [ref=e61]: R&D over budget
+    - generic [ref=e220]:
+      - generic [ref=e221]:
+        - generic [ref=e222]:
+          - generic [ref=e223]: Active Consumers
+          - generic [ref=e224]: "4"
+          - generic [ref=e225]: Teams configured in Kong
+        - generic [ref=e226]:
+          - generic [ref=e227]: Rate Limit Policy
+          - generic [ref=e228]: 500k
+          - generic [ref=e229]: tokens/hour per route
+        - generic [ref=e230]:
+          - generic [ref=e231]: PII Guard Rules
+          - generic [ref=e232]: "3"
+          - generic [ref=e233]: SSN, card, credential patterns
+        - generic [ref=e234]:
+          - generic [ref=e235]: OIDC Provider
+          - generic [ref=e236]: Mock
+          - generic [ref=e237]: mock-oauth2 :8080
+      - generic [ref=e239]: RBAC Matrix
+      - table [ref=e242]:
+        - rowgroup [ref=e243]:
+          - row "Permission FinOps Engineering Admin" [ref=e244]:
+            - columnheader "Permission" [ref=e245]
+            - columnheader "FinOps" [ref=e246]
+            - columnheader "Engineering" [ref=e247]
+            - columnheader "Admin" [ref=e248]
+        - rowgroup [ref=e249]:
+          - row "View Overview ✓ ✓ ✓" [ref=e250]:
+            - cell "View Overview" [ref=e251]
+            - cell "✓" [ref=e252]
+            - cell "✓" [ref=e253]
+            - cell "✓" [ref=e254]
+          - row "View Chargeback ✓ — ✓" [ref=e255]:
+            - cell "View Chargeback" [ref=e256]
+            - cell "✓" [ref=e257]
+            - cell "—" [ref=e258]
+            - cell "✓" [ref=e259]
+          - row "Export Reports ✓ — ✓" [ref=e260]:
+            - cell "Export Reports" [ref=e261]
+            - cell "✓" [ref=e262]
+            - cell "—" [ref=e263]
+            - cell "✓" [ref=e264]
+          - row "View Token Logs — ✓ ✓" [ref=e265]:
+            - cell "View Token Logs" [ref=e266]
+            - cell "—" [ref=e267]
+            - cell "✓" [ref=e268]
+            - cell "✓" [ref=e269]
+          - row "View Anomalies — ✓ ✓" [ref=e270]:
+            - cell "View Anomalies" [ref=e271]
+            - cell "—" [ref=e272]
+            - cell "✓" [ref=e273]
+            - cell "✓" [ref=e274]
+          - row "Manage Budgets — — ✓" [ref=e275]:
+            - cell "Manage Budgets" [ref=e276]
+            - cell "—" [ref=e277]
+            - cell "—" [ref=e278]
+            - cell "✓" [ref=e279]
+          - row "Configure RBAC — — ✓" [ref=e280]:
+            - cell "Configure RBAC" [ref=e281]
+            - cell "—" [ref=e282]
+            - cell "—" [ref=e283]
+            - cell "✓" [ref=e284]

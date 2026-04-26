@@ -1,0 +1,184 @@
+- generic [active] [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - img [ref=e5]
+        - text: AIRA
+      - generic [ref=e10]: AI Resource Analytics
+    - navigation [ref=e11]:
+      - generic [ref=e12]: Monitor
+      - generic [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+        - text: Overview
+      - generic [ref=e19] [cursor=pointer]:
+        - img [ref=e20]
+        - text: Cost & Usage
+      - generic [ref=e22] [cursor=pointer]:
+        - img [ref=e23]
+        - text: Anomalies
+        - generic [ref=e26]: "3"
+      - generic [ref=e27] [cursor=pointer]:
+        - img [ref=e28]
+        - text: AI Forecast
+        - generic [ref=e31]: NEW
+      - generic [ref=e32]: Finance
+      - generic [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+        - text: Chargeback
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+        - text: Token Logs
+      - generic [ref=e39]: Admin
+      - generic [ref=e40] [cursor=pointer]:
+        - img [ref=e41]
+        - text: Governance
+      - generic [ref=e43] [cursor=pointer]:
+        - img [ref=e44]
+        - text: Teams & Budgets
+    - generic [ref=e49]:
+      - generic [ref=e50]: Viewing as
+      - combobox [ref=e51] [cursor=pointer]:
+        - option "FinOps"
+        - option "Engineering"
+        - option "Admin" [selected]
+  - main [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: Overview
+      - generic [ref=e55]: / Apr 2026
+      - generic [ref=e56]:
+        - button "7d" [ref=e57] [cursor=pointer]
+        - button "30d" [ref=e58] [cursor=pointer]
+        - button "90d" [ref=e59] [cursor=pointer]
+        - button "All" [ref=e60] [cursor=pointer]
+      - generic [ref=e61]: R&D over budget
+    - generic [ref=e285]:
+      - generic [ref=e286]:
+        - generic [ref=e287]:
+          - generic [ref=e288]: MTD Spend
+          - generic [ref=e289]: $4,821
+          - generic [ref=e290]: ↑ 23% vs last month
+        - generic [ref=e293]:
+          - generic [ref=e294]: Budget Remaining
+          - generic [ref=e295]: −$321
+          - generic [ref=e296]: R&D exceeded $4,500 cap
+        - generic [ref=e299]:
+          - generic [ref=e300]: Total Requests
+          - generic [ref=e301]: 18,492
+          - generic [ref=e302]: ↑ 11% vs last month
+        - generic [ref=e305]:
+          - generic [ref=e306]: EOM Forecast
+          - generic [ref=e307]: $7,240
+          - generic [ref=e308]: ↑ 44% over budget
+      - generic [ref=e311]:
+        - generic [ref=e312]: Spend over time
+        - combobox [ref=e314] [cursor=pointer]:
+          - option "All Providers" [selected]
+          - option "OpenAI"
+          - option "Anthropic"
+          - option "Gemini"
+      - generic [ref=e315]:
+        - generic [ref=e316]:
+          - generic [ref=e318]:
+            - generic [ref=e319]: Daily Cost (USD)
+            - generic [ref=e320]: $4,821.34
+            - generic [ref=e321]: April 2026 cumulative
+          - img [ref=e322]:
+            - generic [ref=e323]: $250
+            - generic [ref=e324]: $150
+            - generic [ref=e325]: $50
+            - generic [ref=e332]: cap
+          - generic [ref=e333]:
+            - generic [ref=e334]: Gemini
+            - generic [ref=e336]: OpenAI
+            - generic [ref=e338]: Anthropic
+            - generic [ref=e340]: Budget cap
+        - generic [ref=e342]:
+          - generic [ref=e344]:
+            - generic [ref=e345]: Requests per Model
+            - generic [ref=e346]: 18,492
+          - img [ref=e347]:
+            - generic [ref=e348]:
+              - generic [ref=e350]: gemini
+              - generic [ref=e351]: 9.2k
+              - generic [ref=e353]: gpt-4o
+              - generic [ref=e354]: 5.8k
+              - generic [ref=e356]: haiku
+              - generic [ref=e357]: 3.4k
+          - generic [ref=e358]:
+            - generic [ref=e359]: gemini-2.5-flash
+            - generic [ref=e361]: gpt-4o
+            - generic [ref=e363]: claude-haiku
+        - generic [ref=e365]:
+          - generic [ref=e367]:
+            - generic [ref=e368]: Input Tokens per Provider
+            - generic [ref=e369]: 84.2M
+          - img [ref=e370]:
+            - generic [ref=e375]: 84.2M
+            - generic [ref=e376]: tokens
+            - generic [ref=e377]: Gemini
+            - generic [ref=e378]: 50%
+            - generic [ref=e379]: OpenAI
+            - generic [ref=e380]: 25%
+            - generic [ref=e381]: Anthropic
+            - generic [ref=e382]: 25%
+      - generic [ref=e384]: Spend by team
+      - generic [ref=e386]:
+        - generic [ref=e387]:
+          - textbox "Filter teams..." [ref=e388]
+          - button "↓ Export CSV" [ref=e389] [cursor=pointer]
+        - table [ref=e390]:
+          - rowgroup [ref=e391]:
+            - row "Team Department Requests Tokens (M) Spend Budget Utilisation Status" [ref=e392]:
+              - columnheader "Team" [ref=e393]
+              - columnheader "Department" [ref=e394]
+              - columnheader "Requests" [ref=e395]
+              - columnheader "Tokens (M)" [ref=e396]
+              - columnheader "Spend" [ref=e397]
+              - columnheader "Budget" [ref=e398]
+              - columnheader "Utilisation" [ref=e399]
+              - columnheader "Status" [ref=e400]
+          - rowgroup [ref=e401]:
+            - row "nlp-platform R&D 7,821 34.2 $2,134 $1,800 118% Over budget" [ref=e402]:
+              - cell "nlp-platform" [ref=e403]
+              - cell "R&D" [ref=e404]
+              - cell "7,821" [ref=e405]
+              - cell "34.2" [ref=e406]
+              - cell "$2,134" [ref=e407]
+              - cell "$1,800" [ref=e408]
+              - cell "118%" [ref=e409]:
+                - generic [ref=e410]: 118%
+              - cell "Over budget" [ref=e413]:
+                - generic [ref=e414]: Over budget
+            - row "data-science R&D 5,412 28.1 $1,890 $2,500 76% Watch" [ref=e415]:
+              - cell "data-science" [ref=e416]
+              - cell "R&D" [ref=e417]
+              - cell "5,412" [ref=e418]
+              - cell "28.1" [ref=e419]
+              - cell "$1,890" [ref=e420]
+              - cell "$2,500" [ref=e421]
+              - cell "76%" [ref=e422]:
+                - generic [ref=e423]: 76%
+              - cell "Watch" [ref=e426]:
+                - generic [ref=e427]: Watch
+            - row "platform Engineering 3,102 12.4 $512 $1,000 51% On track" [ref=e428]:
+              - cell "platform" [ref=e429]
+              - cell "Engineering" [ref=e430]
+              - cell "3,102" [ref=e431]
+              - cell "12.4" [ref=e432]
+              - cell "$512" [ref=e433]
+              - cell "$1,000" [ref=e434]
+              - cell "51%" [ref=e435]:
+                - generic [ref=e436]: 51%
+              - cell "On track" [ref=e439]:
+                - generic [ref=e440]: On track
+            - row "finance Finance 2,157 9.5 $285 $500 57% On track" [ref=e441]:
+              - cell "finance" [ref=e442]
+              - cell "Finance" [ref=e443]
+              - cell "2,157" [ref=e444]
+              - cell "9.5" [ref=e445]
+              - cell "$285" [ref=e446]
+              - cell "$500" [ref=e447]
+              - cell "57%" [ref=e448]:
+                - generic [ref=e449]: 57%
+              - cell "On track" [ref=e452]:
+                - generic [ref=e453]: On track
