@@ -1,8 +1,16 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Optional
 import sqlite3, os, datetime
 
 app = FastAPI(title="AIRA Usage Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 DB_PATH = os.getenv("DB_PATH", "/data/aira-usage.db")
 
@@ -12,6 +20,21 @@ MODEL_COSTS: dict[str, tuple[float, float]] = {
     "claude-opus-4-7":           (15.00, 75.00),
     "gpt-4o":                    (2.50,  10.00),
     "gemini-2.5-flash":          (0.075, 0.30),
+}
+
+import anthropic
+import calendar
+
+TEAM_BUDGETS: dict[str, float] = {
+    "nlp-platform": 1800.0,
+    "data-science":  2500.0,
+    "platform":      1000.0,
+    "finance":        500.0,
+}
+DEPT_BUDGETS: dict[str, float] = {
+    "R&D":         4500.0,
+    "Engineering": 1000.0,
+    "Finance":      500.0,
 }
 
 
@@ -512,6 +535,86 @@ def dashboard(
         "by_day":         [dict(r) for r in by_day],
         "top_sessions":   [dict(r) for r in top_sessions],
     }
+
+
+@app.get("/forecast")
+def get_forecast(department: Optional[str] = None):
+    today = datetime.date.today()
+    month_start = today.replace(day=1).isoformat()
+    days_elapsed = today.day
+    days_in_month = calendar.monthrange(today.year, today.month)[1]
+    days_remaining = days_in_month - today.day
+
+    base_filters = ["status = 200", "session_date >= ?"]
+    base_params: list = [month_start]
+    if department:
+        base_filters.append("department = ?")
+        base_params.append(department)
+    where = "WHERE " + " AND ".join(base_filters)
+
+    with get_db() as conn:
+        totals = conn.execute(
+            f"SELECT ROUND(SUM(cost_usd), 4) AS total FROM usage_events {where}",
+            base_params,
+        ).fetchone()
+        by_team = conn.execute(
+            f"""SELECT team_id, ROUND(SUM(cost_usd), 4) AS cost
+                FROM usage_events {where}
+                GROUP BY team_id ORDER BY cost DESC""",
+            base_params,
+        ).fetchall()
+        by_model = conn.execute(
+            f"""SELECT model, ROUND(SUM(cost_usd), 4) AS cost
+                FROM usage_events {where}
+                GROUP BY model ORDER BY cost DESC LIMIT 5""",
+            base_params,
+        ).fetchall()
+
+    total_spend = totals["total"] or 0.0
+    daily_rate = total_spend / days_elapsed if days_elapsed > 0 else 0.0
+    projected_eom = round(total_spend + daily_rate * days_remaining, 2)
+
+    if department:
+        budget = DEPT_BUDGETS.get(department, 0.0)
+    else:
+        budget = sum(DEPT_BUDGETS.values())
+
+    team_lines = []
+    for r in by_team:
+        t = r["team_id"] or "unknown"
+        spend = r["cost"] or 0.0
+        b = TEAM_BUDGETS.get(t, 0.0)
+        pct = round(spend / b * 100) if b > 0 else 0
+        team_lines.append(f"  {t}: ${spend:.4f} of ${b:.0f} budget ({pct}%)")
+
+    model_lines = [f"  {r['model']}: ${r['cost']:.4f}" for r in by_model]
+    scope = f"department: {department}" if department else "the entire organisation"
+
+    prompt = (
+        f"You are a FinOps analyst reviewing AI API costs for {scope}.\n\n"
+        f"Data for {today.strftime('%B %Y')} ({days_elapsed} days elapsed, {days_remaining} days remaining):\n"
+        f"- Total spend to date: ${total_spend:.4f}\n"
+        f"- Monthly budget: ${budget:.0f}\n"
+        f"- Daily burn rate: ${daily_rate:.2f}/day (total_spend / days_elapsed)\n"
+        f"- Projected end-of-month spend: ${projected_eom:.2f}\n\n"
+        f"Spend by team:\n" + ("\n".join(team_lines) if team_lines else "  No team data") + "\n\n"
+        f"Top models by cost:\n" + ("\n".join(model_lines) if model_lines else "  No model data") + "\n\n"
+        "In 2-3 concise sentences: forecast end-of-month spend vs budget, identify the biggest cost risk, "
+        "and give one actionable model-switching or usage recommendation with specific dollar estimates.\n\n"
+        "Respond ONLY with valid JSON (no markdown, no code fences):\n"
+        '{"narrative": "...", "projected_eom": <float>, "potential_saving": <float or 0>, "risk_teams": ["team1", ...]}'
+    )
+
+    import json as _json
+    message = anthropic.Anthropic().messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=512,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    result = _json.loads(message.content[0].text.strip())
+    result["department"] = department
+    result["generated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    return result
 
 
 @app.get("/health")
