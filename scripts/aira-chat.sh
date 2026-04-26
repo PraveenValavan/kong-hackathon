@@ -18,8 +18,8 @@ set -euo pipefail
 # ── Defaults ────────────────────────────────────────────────────────────────
 KONG_PROXY="http://localhost:8000"
 IDP_URL="http://localhost:8080/default/token"
-CLIENT_ID="aira-local"
-CLIENT_SECRET="aira-secret"
+CLIENT_ID="${AIRA_CLIENT_ID:-aira-local}"
+CLIENT_SECRET="${AIRA_CLIENT_SECRET:-aira-secret}"
 PROVIDER="anthropic"
 ROLE="engineering"
 SESSION_ID=""
