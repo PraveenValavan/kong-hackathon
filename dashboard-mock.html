@@ -36,7 +36,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'IBM Plex Mono', monospace;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     overflow: hidden;
   }
@@ -56,7 +56,7 @@
   /* ── SIDEBAR ── */
   .sidebar {
     width: var(--sidebar-w);
-    min-height: 100vh;
+    height: 100vh;
     background: var(--bg1);
     border-right: 1px solid var(--border);
     display: flex;
@@ -610,6 +610,71 @@
   .provider-pill.openai { background: rgba(59,130,246,0.12); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
   .provider-pill.anthropic { background: rgba(168,85,247,0.12); color: var(--purple); border: 1px solid rgba(168,85,247,0.25); }
   .provider-pill.gemini { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+
+  /* ── EXEC SUMMARY ── */
+  .hero-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .hero-kpi {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 28px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-kpi.roi-card { border-color: rgba(34,197,94,0.35); }
+  .hero-kpi.roi-card::before { content:''; position:absolute;inset:0;background:rgba(34,197,94,0.04);pointer-events:none; }
+  .hero-kpi.runway-card-h { border-color: var(--amber-dim); }
+  .hero-kpi.runway-card-h::before { content:''; position:absolute;inset:0;background:var(--amber-glow);pointer-events:none; }
+  .hero-kpi.compliance-card { border-color: rgba(59,130,246,0.35); }
+  .hero-kpi.compliance-card::before { content:''; position:absolute;inset:0;background:rgba(59,130,246,0.05);pointer-events:none; }
+  .hero-kpi-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 14px; }
+  .hero-kpi-value { font-family: 'Syne', sans-serif; font-size: 44px; font-weight: 800; line-height: 1; margin-bottom: 8px; }
+  .hero-kpi.roi-card .hero-kpi-value { color: var(--green); }
+  .hero-kpi.runway-card-h .hero-kpi-value { color: var(--amber); font-size: 28px; }
+  .hero-kpi.compliance-card .hero-kpi-value { color: var(--blue); }
+  .hero-kpi-sub { font-size: 10px; color: var(--text3); line-height: 1.6; }
+  .hero-kpi-badge {
+    display: inline-block; font-size: 9px; padding: 2px 8px;
+    border-radius: 99px; margin-top: 10px; letter-spacing: 0.5px;
+  }
+  .hero-kpi.roi-card .hero-kpi-badge { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .hero-kpi.runway-card-h .hero-kpi-badge { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .hero-kpi.compliance-card .hero-kpi-badge { background: rgba(59,130,246,0.12); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+
+  /* ── RUNWAY TIMELINE ── */
+  .runway-timeline { background: var(--bg1); border: 1px solid var(--border); border-radius: 6px; padding: 20px 24px; margin-bottom: 24px; }
+  .runway-track { position: relative; height: 40px; margin: 26px 0 22px; }
+  .runway-bg { position: absolute; top: 14px; bottom: 14px; left: 0; right: 0; background: var(--bg3); border-radius: 2px; }
+  .runway-spent { position: absolute; top: 14px; bottom: 14px; left: 0; width: 30.3%; background: var(--amber); border-radius: 2px 0 0 2px; }
+  .runway-projected { position: absolute; top: 14px; bottom: 14px; left: 30.3%; width: 44.7%; background: rgba(240,165,0,0.28); }
+  .runway-over { position: absolute; top: 8px; bottom: 8px; left: 75%; right: 0; border: 1px dashed rgba(239,68,68,0.45); background: rgba(239,68,68,0.07); border-radius: 2px; display: flex; align-items: center; justify-content: center; }
+  .runway-pin { position: absolute; top: 0; bottom: 0; width: 2px; border-radius: 1px; }
+  .runway-pin-label { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--text3); white-space: nowrap; font-family: 'IBM Plex Mono',monospace; }
+  .runway-pin-sub { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 8px; color: var(--text3); white-space: nowrap; font-family: 'IBM Plex Mono',monospace; }
+  .runway-endpoints { display: flex; justify-content: space-between; font-size: 9px; color: var(--text3); margin-top: 4px; }
+
+  /* ── SCORE BAR ── */
+  .score-row { display: flex; align-items: center; gap: 10px; }
+  .score-label { font-size: 10px; color: var(--text2); width: 110px; flex-shrink: 0; }
+  .score-bar-bg { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; }
+  .score-bar-fg { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
+  .score-pct { font-family: 'Syne',sans-serif; font-size: 12px; font-weight: 700; width: 36px; text-align: right; flex-shrink: 0; }
+
+  /* ── EXEC ACTION ITEMS ── */
+  .action-item {
+    background: var(--bg1); border: 1px solid var(--border); border-radius: 4px;
+    padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;
+    font-size: 11px; color: var(--text2); margin-bottom: 8px;
+  }
+  .action-num { font-family: 'Syne',sans-serif; font-weight: 800; font-size: 18px; color: var(--bg3); flex-shrink: 0; line-height: 1; margin-top: 1px; }
+  .action-save { margin-left: auto; font-family: 'Syne',sans-serif; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .exec-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
 </style>
 </head>
 <body>
@@ -630,6 +695,15 @@
   </div>
 
   <nav class="nav">
+    <div class="nav-section-label">Executive</div>
+    <div class="nav-item" data-page="exec">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+        <polyline points="1,11 4,7 7,9 10,3 13,5"/>
+        <polyline points="10,1 13,1 13,4"/>
+        <line x1="1" y1="13" x2="13" y2="13"/>
+      </svg>
+      Exec Summary
+    </div>
     <div class="nav-section-label">Monitor</div>
 
     <div class="nav-item active" data-page="overview">
@@ -954,6 +1028,139 @@
         </table>
       </div>
 
+      <!-- Claude Forecast mini panel -->
+      <div class="section-header" style="margin-top:8px">
+        <span class="section-title">AI Forecast</span>
+        <div class="section-line"></div>
+        <span class="section-sub" style="cursor:pointer;color:var(--amber)" onclick="navigate('forecast')">View full forecast →</span>
+      </div>
+
+      <div class="forecast-panel" style="margin-bottom:24px">
+        <div class="forecast-header">
+          <div class="forecast-badge">Claude AI Forecast</div>
+          <span class="forecast-model">claude-sonnet-4-6 · generated 07:10 UTC</span>
+        </div>
+        <div class="forecast-text">
+          At the current burn rate of <em>$321/day</em>, AIRA projects <em>$7,240</em> in total April spend — <em>61% over the $4,500 budget</em>. Switching nlp-platform's batch summarisation workload from <em>claude-haiku-4-5</em> to <em>gemini-2.5-flash</em> would save approximately <em>$840/month</em>. Action recommended before Apr 28 to avoid a second budget breach in data-science.
+        </div>
+        <div class="forecast-recs">
+          <div class="forecast-rec">
+            <div class="rec-label">Projected EOM</div>
+            <div class="rec-value">$7,240</div>
+            <div class="rec-sub">vs $4,500 budget</div>
+          </div>
+          <div class="forecast-rec">
+            <div class="rec-label">Potential Saving</div>
+            <div class="rec-value">$840/mo</div>
+            <div class="rec-sub">switch nlp → gemini-2.5-flash</div>
+          </div>
+          <div class="forecast-rec">
+            <div class="rec-label">Risk Teams</div>
+            <div class="rec-value">2 of 4</div>
+            <div class="rec-sub">nlp-platform (over), data-science (watch)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent anomalies -->
+      <div class="section-header">
+        <span class="section-title">Recent anomalies</span>
+        <div class="section-line"></div>
+        <span class="section-sub" style="cursor:pointer;color:var(--amber)" onclick="navigate('anomalies')">View all →</span>
+      </div>
+
+      <div class="anomaly-strip" style="margin-bottom:24px">
+        <div class="anomaly-item">
+          <span class="anomaly-tag">CRITICAL</span>
+          <span><strong style="color:var(--text)">nlp-platform</strong> — 4.2× normal token usage in the last hour. Possible prompt injection or runaway loop.</span>
+          <span class="anomaly-time">07:03 UTC</span>
+        </div>
+        <div class="anomaly-item">
+          <span class="anomaly-tag">CRITICAL</span>
+          <span><strong style="color:var(--text)">R&D department</strong> — Monthly budget cap of $4,500 exceeded. Current spend: $4,821.</span>
+          <span class="anomaly-time">06:48 UTC</span>
+        </div>
+        <div class="anomaly-item warn">
+          <span class="anomaly-tag" style="color:var(--amber);background:rgba(240,165,0,0.1);border-color:rgba(240,165,0,0.25)">WARN</span>
+          <span><strong style="color:var(--text)">data-science</strong> — At 76% of $2,500 budget with 12 days remaining. Projected to exceed by ~$340.</span>
+          <span class="anomaly-time">06:00 UTC</span>
+        </div>
+      </div>
+
+      <!-- Recent events -->
+      <div class="section-header">
+        <span class="section-title">Recent events</span>
+        <div class="section-line"></div>
+        <span class="section-sub" style="cursor:pointer;color:var(--amber)" onclick="navigate('logs')">View token logs →</span>
+      </div>
+
+      <div class="table-card" style="margin-bottom:8px">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User</th>
+              <th>Provider</th>
+              <th>Model</th>
+              <th>In Tokens</th>
+              <th>Out Tokens</th>
+              <th>Cost</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:var(--text3)">07:03:42</td>
+              <td>engineer-001</td>
+              <td><span class="provider-pill anthropic">Anthropic</span></td>
+              <td>claude-haiku-4-5</td>
+              <td>12,841</td><td>3,210</td><td>$0.041</td>
+              <td><span class="status-pill ok">200</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text3)">07:01:18</td>
+              <td>ds-lead-007</td>
+              <td><span class="provider-pill openai">OpenAI</span></td>
+              <td>gpt-4o</td>
+              <td>4,102</td><td>1,840</td><td>$0.072</td>
+              <td><span class="status-pill ok">200</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text3)">06:59:05</td>
+              <td>engineer-001</td>
+              <td><span class="provider-pill anthropic">Anthropic</span></td>
+              <td>claude-haiku-4-5</td>
+              <td>8,100</td><td>2,400</td><td>$0.028</td>
+              <td><span class="status-pill over">429</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text3)">06:58:33</td>
+              <td>engineer-003</td>
+              <td><span class="provider-pill gemini">Gemini</span></td>
+              <td>gemini-2.5-flash</td>
+              <td>8,200</td><td>2,100</td><td>$0.008</td>
+              <td><span class="status-pill ok">200</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text3)">06:55:01</td>
+              <td>engineer-001</td>
+              <td><span class="provider-pill anthropic">Anthropic</span></td>
+              <td>claude-haiku-4-5</td>
+              <td>15,920</td><td>4,812</td><td>$0.059</td>
+              <td><span class="status-pill warn">blocked</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text3)">06:52:17</td>
+              <td>finops-001</td>
+              <td><span class="provider-pill gemini">Gemini</span></td>
+              <td>gemini-2.5-flash</td>
+              <td>2,100</td><td>840</td><td>$0.003</td>
+              <td><span class="status-pill ok">200</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
     </div><!-- /overview -->
 
     <!-- ══ COST & USAGE PAGE ══ -->
@@ -1065,29 +1272,41 @@
 
     <!-- ══ FORECAST PAGE ══ -->
     <div class="page" id="page-forecast">
+      <!-- department filter -->
+      <div class="section-header" style="margin-bottom:16px">
+        <span class="section-title">AI Forecast</span>
+        <div class="section-line"></div>
+        <select class="model-filter" id="forecastDeptFilter" onchange="applyForecastDept(this.value)">
+          <option value="all">All Departments</option>
+          <option value="rd">R&amp;D</option>
+          <option value="engineering">Engineering</option>
+          <option value="finance">Finance</option>
+        </select>
+      </div>
+
       <div class="forecast-panel">
         <div class="forecast-header">
           <div class="forecast-badge">Claude AI Forecast</div>
           <span class="forecast-model">claude-sonnet-4-6 · generated 07:10 UTC</span>
         </div>
-        <div class="forecast-text">
+        <div class="forecast-text" id="forecast-narrative">
           At the current burn rate of <em>$321/day</em>, AIRA projects <em>$7,240</em> in total April spend — <em>61% over the $4,500 budget</em>. The primary driver is the <em>nlp-platform team</em>, whose token usage spiked 4× this week, likely due to long-context batch jobs against <em>claude-haiku-4-5</em>. Switching this workload to <em>gemini-2.5-flash</em> would reduce cost by approximately <em>$840/month</em> with comparable output quality for summarisation tasks. The <em>data-science team</em> is on track to exceed its budget by <em>$340</em>; a 20% token reduction or budget increase is recommended before Apr 28.
         </div>
         <div class="forecast-recs">
           <div class="forecast-rec">
             <div class="rec-label">Projected EOM</div>
-            <div class="rec-value">$7,240</div>
-            <div class="rec-sub">vs $4,500 budget</div>
+            <div class="rec-value" id="forecast-eom">$7,240</div>
+            <div class="rec-sub" id="forecast-eom-sub">vs $4,500 budget</div>
           </div>
           <div class="forecast-rec">
             <div class="rec-label">Potential Saving</div>
-            <div class="rec-value">$840/mo</div>
-            <div class="rec-sub">switch nlp → gemini-2.5-flash</div>
+            <div class="rec-value" id="forecast-saving">$840/mo</div>
+            <div class="rec-sub" id="forecast-saving-sub">switch nlp → gemini-2.5-flash</div>
           </div>
           <div class="forecast-rec">
             <div class="rec-label">Risk Teams</div>
-            <div class="rec-value">2 of 4</div>
-            <div class="rec-sub">nlp-platform (over), data-science (watch)</div>
+            <div class="rec-value" id="forecast-risk">2 of 4</div>
+            <div class="rec-sub" id="forecast-risk-sub">nlp-platform (over), data-science (watch)</div>
           </div>
         </div>
       </div>
@@ -1134,6 +1353,188 @@
         </div>
       </div>
     </div>
+
+    <!-- ══ EXEC SUMMARY PAGE ══ -->
+    <div class="page" id="page-exec">
+
+      <!-- Hero KPIs -->
+      <div class="hero-kpi-row">
+        <div class="hero-kpi roi-card">
+          <div class="hero-kpi-label">AI Return on Investment</div>
+          <div class="hero-kpi-value">12.7×</div>
+          <div class="hero-kpi-sub">$61,200 estimated labour value<br>vs $4,821 AI spend this month</div>
+          <div class="hero-kpi-badge">↑ from 9.4× last month</div>
+        </div>
+        <div class="hero-kpi runway-card-h">
+          <div class="hero-kpi-label">Annual Budget Runway</div>
+          <div class="hero-kpi-value">Sep 27, 2026</div>
+          <div class="hero-kpi-sub">At $5,570/mo run rate — budget<br>exhausted 95 days before year-end</div>
+          <div class="hero-kpi-badge">Action required by Jun 1</div>
+        </div>
+        <div class="hero-kpi compliance-card">
+          <div class="hero-kpi-label">Compliance Posture Score</div>
+          <div class="hero-kpi-value">74<span style="font-size:20px;color:var(--text3);font-weight:400">/100</span></div>
+          <div class="hero-kpi-sub">PII guard active · 2 open anomalies<br>OIDC enforced on all routes</div>
+          <div class="hero-kpi-badge">↑ 6 pts vs last quarter</div>
+        </div>
+      </div>
+
+      <!-- Budget Runway Timeline -->
+      <div class="section-header">
+        <span class="section-title">Annual Budget Runway — FY 2026</span>
+        <div class="section-line"></div>
+        <span style="font-size:10px;color:var(--text3)">$50,000 annual cap · $5,570/mo run rate</span>
+      </div>
+
+      <div class="runway-timeline">
+        <div class="runway-track">
+          <div class="runway-bg"></div>
+          <div class="runway-spent"></div>
+          <div class="runway-projected"></div>
+          <div class="runway-over">
+            <span style="font-size:9px;color:var(--red);font-family:'IBM Plex Mono',monospace;letter-spacing:1px">OVER BUDGET</span>
+          </div>
+          <div class="runway-pin" style="left:30.3%;background:var(--text)">
+            <div class="runway-pin-label">Today</div>
+            <div class="runway-pin-sub">Apr 26</div>
+          </div>
+          <div class="runway-pin" style="left:75%;background:var(--red)">
+            <div class="runway-pin-label" style="color:var(--red)">Budget exhausted</div>
+            <div class="runway-pin-sub" style="color:var(--red)">Sep 27</div>
+          </div>
+        </div>
+        <div class="runway-endpoints">
+          <span>Jan 1, 2026</span>
+          <span style="color:var(--amber)">$31,800 remaining · $18,200 spent YTD</span>
+          <span>Dec 31, 2026</span>
+        </div>
+        <div class="legend" style="margin-top:14px">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Spent YTD ($18,200)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(240,165,0,0.4)"></div>Projected at current rate ($31,800)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.3);border-radius:2px"></div>Over-budget period (Oct–Dec)</div>
+        </div>
+      </div>
+
+      <!-- Risk Radar + Score Breakdown -->
+      <div class="section-header">
+        <span class="section-title">Executive Risk Radar</span>
+        <div class="section-line"></div>
+        <span style="font-size:10px;color:var(--text3)">Higher score = healthier</span>
+      </div>
+
+      <div class="exec-charts-grid">
+        <div class="chart-card">
+          <div class="chart-header"><div><div class="chart-title">AI Health Pentagon</div></div></div>
+          <svg width="100%" height="220" viewBox="0 0 320 220" preserveAspectRatio="xMidYMid meet">
+            <!-- Grid rings (r=25, 50, 75; center 160,110) -->
+            <polygon points="160,85 184,102 175,130 145,130 136,102" fill="none" stroke="#2a2a32" stroke-width="1"/>
+            <polygon points="160,60 208,95 189,151 131,151 112,95"   fill="none" stroke="#2a2a32" stroke-width="1"/>
+            <polygon points="160,35 231,87 204,171 116,171 89,87"    fill="none" stroke="#2a2a32" stroke-width="1"/>
+            <!-- Axis lines -->
+            <line x1="160" y1="110" x2="160" y2="35"  stroke="#2a2a32" stroke-width="1"/>
+            <line x1="160" y1="110" x2="231" y2="87"  stroke="#2a2a32" stroke-width="1"/>
+            <line x1="160" y1="110" x2="204" y2="171" stroke="#2a2a32" stroke-width="1"/>
+            <line x1="160" y1="110" x2="116" y2="171" stroke="#2a2a32" stroke-width="1"/>
+            <line x1="160" y1="110" x2="89"  y2="87"  stroke="#2a2a32" stroke-width="1"/>
+            <!-- Data polygon: Cost=40%, Adoption=85%, Compliance=74%, VendorDiv=45%, Security=75% -->
+            <polygon points="160,80 221,90 193,155 140,137 107,93" fill="rgba(240,165,0,0.12)" stroke="#f0a500" stroke-width="1.5"/>
+            <!-- Data dots -->
+            <circle cx="160" cy="80"  r="3.5" fill="#ef4444"/>
+            <circle cx="221" cy="90"  r="3.5" fill="#22c55e"/>
+            <circle cx="193" cy="155" r="3.5" fill="#3b82f6"/>
+            <circle cx="140" cy="137" r="3.5" fill="#f0a500"/>
+            <circle cx="107" cy="93"  r="3.5" fill="#22c55e"/>
+            <!-- Axis labels + scores -->
+            <text x="160" y="22"  text-anchor="middle" fill="#9898a8" font-size="8" font-family="IBM Plex Mono">Cost Health</text>
+            <text x="160" y="32"  text-anchor="middle" fill="#ef4444" font-size="10" font-family="Syne,sans-serif" font-weight="700">40%</text>
+            <text x="244" y="81"  text-anchor="start"  fill="#9898a8" font-size="8" font-family="IBM Plex Mono">Adoption</text>
+            <text x="244" y="92"  text-anchor="start"  fill="#22c55e" font-size="10" font-family="Syne,sans-serif" font-weight="700">85%</text>
+            <text x="204" y="183" text-anchor="middle" fill="#9898a8" font-size="8" font-family="IBM Plex Mono">Compliance</text>
+            <text x="204" y="194" text-anchor="middle" fill="#3b82f6" font-size="10" font-family="Syne,sans-serif" font-weight="700">74%</text>
+            <text x="116" y="183" text-anchor="middle" fill="#9898a8" font-size="8" font-family="IBM Plex Mono">Vendor Div</text>
+            <text x="116" y="194" text-anchor="middle" fill="#f0a500" font-size="10" font-family="Syne,sans-serif" font-weight="700">45%</text>
+            <text x="76"  y="81"  text-anchor="end"    fill="#9898a8" font-size="8" font-family="IBM Plex Mono">Security</text>
+            <text x="76"  y="92"  text-anchor="end"    fill="#22c55e" font-size="10" font-family="Syne,sans-serif" font-weight="700">75%</text>
+          </svg>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header"><div><div class="chart-title">Compliance Score Breakdown</div><div class="chart-unit">Composite: 74/100</div></div></div>
+          <div style="display:flex;flex-direction:column;gap:16px;padding-top:8px">
+            <div class="score-row">
+              <span class="score-label">Auth Coverage</span>
+              <div class="score-bar-bg"><div class="score-bar-fg" style="width:100%;background:var(--green)"></div></div>
+              <span class="score-pct" style="color:var(--green)">100%</span>
+            </div>
+            <div class="score-row">
+              <span class="score-label">PII Guard</span>
+              <div class="score-bar-bg"><div class="score-bar-fg" style="width:85%;background:var(--green)"></div></div>
+              <span class="score-pct" style="color:var(--green)">85%</span>
+            </div>
+            <div class="score-row">
+              <span class="score-label">Audit Logging</span>
+              <div class="score-bar-bg"><div class="score-bar-fg" style="width:80%;background:var(--green)"></div></div>
+              <span class="score-pct" style="color:var(--green)">80%</span>
+            </div>
+            <div class="score-row">
+              <span class="score-label">Budget Governance</span>
+              <div class="score-bar-bg"><div class="score-bar-fg" style="width:75%;background:var(--amber)"></div></div>
+              <span class="score-pct" style="color:var(--amber)">75%</span>
+            </div>
+            <div class="score-row">
+              <span class="score-label">Anomaly Resolution</span>
+              <div class="score-bar-bg"><div class="score-bar-fg" style="width:50%;background:var(--red)"></div></div>
+              <span class="score-pct" style="color:var(--red)">50%</span>
+            </div>
+          </div>
+          <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:9px;color:var(--text3);line-height:1.6">
+            Weighted composite of 5 governance dimensions.<br>
+            <span style="color:var(--red)">Anomaly resolution SLA is the main drag</span> — 2 of 3 critical anomalies open &gt;1 hour.
+          </div>
+        </div>
+      </div>
+
+      <!-- Prioritised Actions -->
+      <div class="section-header">
+        <span class="section-title">Recommended Actions</span>
+        <div class="section-line"></div>
+        <span style="font-size:10px;color:var(--text3)">ranked by financial impact</span>
+      </div>
+
+      <div class="action-item">
+        <span class="action-num" style="color:var(--red)">1</span>
+        <div>
+          <strong style="color:var(--text)">Switch nlp-platform batch jobs to Gemini 2.5 Flash</strong><br>
+          <span style="font-size:10px">Claude Haiku is 10× the cost of Gemini Flash for summarisation workloads. No quality regression expected for batch tasks.</span>
+        </div>
+        <span class="action-save" style="color:var(--green)">−$840/mo</span>
+      </div>
+      <div class="action-item">
+        <span class="action-num" style="color:var(--amber)">2</span>
+        <div>
+          <strong style="color:var(--text)">Enforce hard budget cap on data-science team</strong><br>
+          <span style="font-size:10px">Currently soft-warn only. At 76% with 12 days remaining, projected overage is $340. Enable Kong 429 rate-limit before Apr 28.</span>
+        </div>
+        <span class="action-save" style="color:var(--amber)">−$340 risk</span>
+      </div>
+      <div class="action-item">
+        <span class="action-num" style="color:var(--amber)">3</span>
+        <div>
+          <strong style="color:var(--text)">Diversify model mix — vendor concentration at 82%</strong><br>
+          <span style="font-size:10px">82% of spend concentrated on 2 providers. One API deprecation or outage creates immediate business risk. Add a third-provider fallback route in Kong.</span>
+        </div>
+        <span class="action-save" style="color:var(--blue)">Risk mitigation</span>
+      </div>
+      <div class="action-item">
+        <span class="action-num" style="color:var(--text3)">4</span>
+        <div>
+          <strong style="color:var(--text)">Resolve open anomalies within 30-minute SLA</strong><br>
+          <span style="font-size:10px">Two critical anomalies (nlp-platform spike, R&D budget breach) have been open &gt;19 minutes. Pulls compliance score down 12 points.</span>
+        </div>
+        <span class="action-save" style="color:var(--blue)">+12 compliance pts</span>
+      </div>
+
+    </div><!-- /exec -->
 
     <!-- ══ CHARGEBACK PAGE ══ -->
     <div class="page" id="page-chargeback">
@@ -1291,6 +1692,7 @@
 <script>
   // ── NAV ──
   const pages = {
+    exec:       { title: 'Exec Summary',   el: 'page-exec' },
     overview:   { title: 'Overview',       el: 'page-overview' },
     cost:       { title: 'Cost & Usage',   el: 'page-cost' },
     anomalies:  { title: 'Anomalies',      el: 'page-anomalies' },
@@ -1302,9 +1704,9 @@
   };
 
   const roleAccess = {
-    finops:      ['overview','cost','chargeback','forecast'],
-    engineering: ['overview','cost','anomalies','forecast','logs'],
-    admin:       ['overview','cost','anomalies','forecast','chargeback','logs','governance','teams'],
+    finops:      ['exec','overview','cost','chargeback','forecast'],
+    engineering: ['exec','overview','cost','anomalies','forecast','logs'],
+    admin:       ['exec','overview','cost','anomalies','forecast','chargeback','logs','governance','teams'],
   };
 
   let currentRole = 'finops';
@@ -1428,6 +1830,45 @@
   buildMainChart();
   buildBarChart();
   applyRoleVisibility();
+
+// Department forecast data
+const DEPT_FORECASTS = {
+  all: {
+    narrative: 'At the current burn rate of <em>$321/day</em>, AIRA projects <em>$7,240</em> in total April spend — <em>61% over the $4,500 budget</em>. The primary driver is the <em>nlp-platform team</em>, whose token usage spiked 4× this week, likely due to long-context batch jobs against <em>claude-haiku-4-5</em>. Switching this workload to <em>gemini-2.5-flash</em> would reduce cost by approximately <em>$840/month</em> with comparable output quality for summarisation tasks. The <em>data-science team</em> is on track to exceed its budget by <em>$340</em>; a 20% token reduction or budget increase is recommended before Apr 28.',
+    eom: '$7,240', eomSub: 'vs $4,500 budget',
+    saving: '$840/mo', savingSub: 'switch nlp → gemini-2.5-flash',
+    risk: '2 of 4', riskSub: 'nlp-platform (over), data-science (watch)',
+  },
+  rd: {
+    narrative: 'R&D is burning <em>$201/day</em>, projecting <em>$4,430</em> by month-end against a <em>$4,300 combined budget</em>. The <em>nlp-platform</em> team is already <em>$334 over its $1,800 cap</em> and driving 53% of department spend. Migrating batch summarisation from <em>claude-haiku-4-5</em> to <em>gemini-2.5-flash</em> could save <em>$620/month</em> with no quality degradation on summarisation tasks.',
+    eom: '$4,430', eomSub: 'vs $4,300 R&D budget',
+    saving: '$620/mo', savingSub: 'switch nlp batch → gemini-2.5-flash',
+    risk: '2 of 2', riskSub: 'nlp-platform (over), data-science (watch)',
+  },
+  engineering: {
+    narrative: 'Engineering is well within budget, spending <em>$512</em> of a <em>$1,000 cap</em> with 12 days remaining — projected at <em>$640 by month-end</em>. The primary model is <em>gpt-4o</em> via OpenAI. No immediate action required; consider reviewing rate-limit thresholds if usage continues to grow at the current 11% month-on-month rate.',
+    eom: '$640', eomSub: 'vs $1,000 budget',
+    saving: '$0', savingSub: 'no switch recommended',
+    risk: '0 of 1', riskSub: 'platform on track',
+  },
+  finance: {
+    narrative: 'Finance is tracking conservatively at <em>$285</em> of a <em>$500 budget</em>, projecting <em>$356 by month-end</em>. Usage is exclusively <em>gemini-2.5-flash</em>, the most cost-efficient model available. No action required; budget utilisation is healthy at 57%.',
+    eom: '$356', eomSub: 'vs $500 budget',
+    saving: '$0', savingSub: 'already on cheapest model',
+    risk: '0 of 1', riskSub: 'finance on track',
+  },
+};
+
+function applyForecastDept(key) {
+  const d = DEPT_FORECASTS[key];
+  document.getElementById('forecast-narrative').innerHTML = d.narrative;
+  document.getElementById('forecast-eom').textContent = d.eom;
+  document.getElementById('forecast-eom-sub').textContent = d.eomSub;
+  document.getElementById('forecast-saving').textContent = d.saving;
+  document.getElementById('forecast-saving-sub').textContent = d.savingSub;
+  document.getElementById('forecast-risk').textContent = d.risk;
+  document.getElementById('forecast-risk-sub').textContent = d.riskSub;
+}
 </script>
 </body>
 </html>
