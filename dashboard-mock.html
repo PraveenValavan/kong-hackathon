@@ -1860,7 +1860,8 @@ const DEPT_FORECASTS = {
 };
 
 function applyForecastDept(key) {
-  const d = DEPT_FORECASTS[key];
+  const d = DEPT_FORECASTS[key] || DEPT_FORECASTS['all'];
+  // narrative strings contain <em> markup — keep innerHTML, never assign user-supplied strings here
   document.getElementById('forecast-narrative').innerHTML = d.narrative;
   document.getElementById('forecast-eom').textContent = d.eom;
   document.getElementById('forecast-eom-sub').textContent = d.eomSub;
