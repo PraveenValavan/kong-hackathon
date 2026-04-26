@@ -217,6 +217,34 @@ http://localhost:8002/docs
 ./scripts/aira-usage.sh db
 ```
 
+#### SQLite shell queries
+
+Once inside the `sqlite>` prompt, use these queries:
+
+```sql
+-- See all tables
+SELECT name FROM sqlite_master WHERE type='table';
+
+-- Browse recent events
+SELECT * FROM usage_events ORDER BY created_at DESC LIMIT 20;
+
+-- Cost by user
+SELECT user_id, SUM(total_cost) as total_cost, SUM(total_tokens) as tokens
+FROM usage_events GROUP BY user_id ORDER BY total_cost DESC;
+
+-- Cost by provider
+SELECT provider, SUM(total_cost) as cost, COUNT(*) as requests
+FROM usage_events GROUP BY provider;
+
+-- Filter by date
+SELECT * FROM usage_events WHERE created_at >= '2026-04-26' LIMIT 20;
+
+-- See table schema
+SELECT sql FROM sqlite_master WHERE name='usage_events';
+```
+
+Type `quit()` or press `Ctrl-D` to exit the shell.
+
 Available filters (combine freely): `--since YYYY-MM-DD`, `--until YYYY-MM-DD`, `--user <id>`, `--dept <name>`, `--provider anthropic|openai|gemini`, `--session <uuid>`, `--limit <n>`
 
 ### Backend tests
