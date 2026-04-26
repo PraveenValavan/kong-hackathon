@@ -15,9 +15,9 @@ services:
     url: https://api.anthropic.com
     tags: [aira, anthropic]
 
-  - name: openrouter-service
-    url: https://openrouter.ai/api
-    tags: [aira, openrouter]
+  - name: gemini-service
+    url: https://generativelanguage.googleapis.com
+    tags: [aira, gemini]
 
 # ─── Routes ─────────────────────────────────────────────────────────────────
 
@@ -36,12 +36,30 @@ routes:
     strip_path: true
     tags: [aira, anthropic]
 
-  - name: openrouter-route
-    service: openrouter-service
+  - name: anthropic-sonnet-route
+    service: anthropic-service
     paths:
-      - /openrouter
+      - /anthropic
+    headers:
+      x-model: [sonnet]
     strip_path: true
-    tags: [aira, openrouter]
+    tags: [aira, anthropic]
+
+  - name: anthropic-opus-route
+    service: anthropic-service
+    paths:
+      - /anthropic
+    headers:
+      x-model: [opus]
+    strip_path: true
+    tags: [aira, anthropic]
+
+  - name: gemini-route
+    service: gemini-service
+    paths:
+      - /gemini
+    strip_path: true
+    tags: [aira, gemini]
 
 # ─── Plugins ────────────────────────────────────────────────────────────────
 
@@ -88,9 +106,22 @@ plugins:
         options:
           max_tokens: 4096
           temperature: 0.7
+          input_cost: 2.50    # USD per 1M prompt tokens (gpt-4o)
+          output_cost: 10.00  # USD per 1M completion tokens (gpt-4o)
+      logging:
+        log_statistics: true   # token counts + model → Kong error log
+        log_payloads: true     # full prompt + completion → Kong error log
+
+  # ── Anthropic cost variables (USD per 1M tokens) — edit here to reprice ──────
+  # &c-<model>-in / &c-<model>-out anchors are YAML variables resolved before
+  # Kong loads the config. Reference them with *c-<model>-in / *c-<model>-out.
+  #
+  #   haiku-4-5:   in=0.80   out=4.00
+  #   sonnet-4-6:  in=3.00   out=15.00
+  #   opus-4-7:    in=15.00  out=75.00
 
   - name: ai-proxy
-    route: anthropic-route
+    route: anthropic-route        # default → haiku
     config:
       route_type: llm/v1/chat
       auth:
@@ -103,18 +134,79 @@ plugins:
           max_tokens: 4096
           temperature: 0.7
           anthropic_version: "2023-06-01"
+          input_cost:  &c-haiku-in  0.80
+          output_cost: &c-haiku-out 4.00
+      logging:
+        log_statistics: true
+        log_payloads: true
 
-  # OpenRouter: no ai-proxy — model field passes through from the client request.
-  # Kong only strips the incoming Bearer token and injects the real OpenRouter key.
+  - name: ai-proxy
+    route: anthropic-sonnet-route
+    config:
+      route_type: llm/v1/chat
+      auth:
+        header_name: x-api-key
+        header_value: "{vault://env/ANTHROPIC_API_KEY}"
+      model:
+        provider: anthropic
+        name: claude-sonnet-4-6
+        options:
+          max_tokens: 4096
+          temperature: 0.7
+          anthropic_version: "2023-06-01"
+          input_cost:  &c-sonnet-in  3.00
+          output_cost: &c-sonnet-out 15.00
+      logging:
+        log_statistics: true
+        log_payloads: true
+
+  - name: ai-proxy
+    route: anthropic-opus-route
+    config:
+      route_type: llm/v1/chat
+      auth:
+        header_name: x-api-key
+        header_value: "{vault://env/ANTHROPIC_API_KEY}"
+      model:
+        provider: anthropic
+        name: claude-opus-4-7
+        options:
+          max_tokens: 4096
+          anthropic_version: "2023-06-01"
+          input_cost:  &c-opus-in  15.00
+          output_cost: &c-opus-out 75.00
+      logging:
+        log_statistics: true
+        log_payloads: true
+
+  # Strip the OIDC JWT before it reaches Google — Gemini rejects any Bearer token it doesn't own.
+  # ai-proxy adds the real API key as ?key= query param separately.
   - name: request-transformer
-    route: openrouter-route
+    route: gemini-route
     config:
       remove:
         headers:
           - Authorization
-      add:
-        headers:
-          - "Authorization:Bearer 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"
+
+  - name: ai-proxy
+    route: gemini-route
+    config:
+      route_type: llm/v1/chat
+      auth:
+        param_name: key
+        param_value: "{vault://env/GEMINI_API_KEY}"
+        param_location: query
+      model:
+        provider: gemini
+        name: gemini-2.5-flash
+        options:
+          max_tokens: 4096
+          temperature: 0.7
+          input_cost: 0.075   # USD per 1M prompt tokens (gemini-2.5-flash)
+          output_cost: 0.30   # USD per 1M completion tokens (gemini-2.5-flash)
+      logging:
+        log_statistics: true
+        log_payloads: true
 
   # ── Token-Based Rate Limiting (replaces rate-limiting-advanced) ──────────────
   # ai-rate-limiting-advanced counts tokens consumed rather than requests —
@@ -136,14 +228,29 @@ plugins:
           limit: 500000
           window_size: 3600
 
-  - name: rate-limiting-advanced
-    route: openrouter-route
+  - name: ai-rate-limiting-advanced
+    route: anthropic-sonnet-route
     config:
-      limit:
-        - 100
-      window_size:
-        - 60
-      sync_rate: -1
+      llm_providers:
+        - name: anthropic
+          limit: 500000
+          window_size: 3600
+
+  - name: ai-rate-limiting-advanced
+    route: anthropic-opus-route
+    config:
+      llm_providers:
+        - name: anthropic
+          limit: 500000
+          window_size: 3600
+
+  - name: ai-rate-limiting-advanced
+    route: gemini-route
+    config:
+      llm_providers:
+        - name: gemini
+          limit: 500000
+          window_size: 3600
 
   # ── PII / Content Guard (replaces planned custom filter) ────────────────────
   # ai-prompt-guard blocks requests matching sensitive data patterns before
@@ -168,13 +275,80 @@ plugins:
       allow_all_conversation_history: true
 
   - name: ai-prompt-guard
-    route: openrouter-route
+    route: anthropic-sonnet-route
     config:
       deny_patterns:
         - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
         - "\\b\\d{16}\\b"
         - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
       allow_all_conversation_history: true
+
+  - name: ai-prompt-guard
+    route: anthropic-opus-route
+    config:
+      deny_patterns:
+        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        - "\\b\\d{16}\\b"
+        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
+      allow_all_conversation_history: true
+
+  - name: ai-prompt-guard
+    route: gemini-route
+    config:
+      deny_patterns:
+        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        - "\\b\\d{16}\\b"
+        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
+      allow_all_conversation_history: true
+
+  # ── Pre-function: stash OIDC upstream-bound claims into ctx.shared ──────────
+  # OIDC sets x-user-id / x-team-id on the upstream request (sent to the LLM),
+  # not on the inbound request. file-log reads the inbound request headers, so
+  # those claims are invisible to it. This pre-function runs after OIDC in the
+  # access phase and copies the service-request headers into kong.ctx.shared
+  # so custom_fields_by_lua in file-log can include them in the log entry.
+
+  - name: pre-function
+    config:
+      access:
+        - |
+          -- OIDC has already validated the JWT by this phase.
+          -- Decode the Bearer token payload (base64 middle segment) to read claims.
+          -- No signature check needed here — OIDC already did that.
+          -- Extract JWT claims with Lua patterns — no JSON library needed.
+          -- OIDC already validated the token; we just need the payload values.
+          local auth = kong.request.get_header("authorization") or ""
+          local token = auth:match("^[Bb]earer%s+(.+)$")
+          if token then
+            local parts = {}
+            for p in token:gmatch("[^%.]+") do parts[#parts+1] = p end
+            if parts[2] then
+              local b64 = parts[2]:gsub("-", "+"):gsub("_", "/")
+              local pad = (4 - #b64 % 4) % 4
+              b64 = b64 .. string.rep("=", pad)
+              local payload = ngx.decode_base64(b64)
+              if payload then
+                kong.ctx.shared.aira_user_id    = payload:match('"sub"%s*:%s*"([^"]+)"')
+                kong.ctx.shared.aira_team_id    = payload:match('"team_id"%s*:%s*"([^"]+)"')
+                kong.ctx.shared.aira_department = payload:match('"department"%s*:%s*"([^"]+)"')
+              end
+            end
+          end
+          kong.ctx.shared.session_id = kong.request.get_header("x-session-id")
+          kong.ctx.shared.model_name = kong.request.get_header("x-model") or "haiku"
+
+  # ── File Log — structured NDJSON audit trail ───────────────────────────────
+
+  - name: file-log
+    config:
+      path: /logs/aira-access.log
+      reopen: false
+      custom_fields_by_lua:
+        user_id:    "return kong.ctx.shared.aira_user_id"
+        team_id:    "return kong.ctx.shared.aira_team_id"
+        department: "return kong.ctx.shared.aira_department"
+        session_id: "return kong.ctx.shared.session_id"
+        model_name: "return kong.ctx.shared.model_name"
 
   # ── Usage Logging → AIRA Backend ────────────────────────────────────────────
   # http-log emits the full Kong request/response log (including ai-proxy's
@@ -188,3 +362,8 @@ plugins:
       keepalive: 60000
       flush_timeout: 2
       retry_count: 2
+      custom_fields_by_lua:
+        user_id:    "return kong.ctx.shared.aira_user_id"
+        team_id:    "return kong.ctx.shared.aira_team_id"
+        department: "return kong.ctx.shared.aira_department"
+        session_id: "return kong.ctx.shared.session_id"

@@ -107,7 +107,7 @@ curl -X POST http://localhost:8000/anthropic/v1/chat/completions \
 |---|---|---|
 | `openid-connect` | Global | Validates Bearer JWT, forwards `team_id`/`department` as upstream headers |
 | `ai-proxy` | Per route | Provider auth injection, request/response normalisation, token extraction |
-| `ai-rate-limiting-advanced` | Per route | Token-based rate limiting (500k tokens/hour), maps directly to cost |
+| `ai-rate-limiting-advanced` | Per route (OpenAI, Anthropic, Gemini) | Token-based rate limiting (500k tokens/hour), maps directly to cost |
 | `ai-prompt-guard` | Per route | Blocks SSN, credit card numbers, and credential patterns before they reach the LLM |
 | `http-log` | Global | Emits full usage event (with token counts) to AIRA backend after each call |
 
@@ -146,24 +146,90 @@ curl http://localhost:8001/routes/openai-route/plugins | jq '.data[] | select(.n
 # OpenAI, finops role
 ./scripts/aira-chat.sh "Summarise last month's spend" --provider openai --role finops
 
-# Anthropic, datascience role
-./scripts/aira-chat.sh "What is a transformer model?" --role datascience
+# Gemini, datascience role
+./scripts/aira-chat.sh "What is a transformer model?" --provider gemini --role datascience
+
+# Pin a session ID to group multiple turns together
+SESSION=$(uuidgen)
+./scripts/aira-chat.sh "First question" --session $SESSION
+./scripts/aira-chat.sh "Follow-up"      --session $SESSION
 ```
 
 Available roles: `engineering` | `finops` | `admin` | `datascience`  
-Available providers: `anthropic` | `openai` | `openrouter`
+Available providers: `anthropic` | `openai` | `gemini`
 
-For `openrouter`, pass `--model` to choose the model. OpenRouter resolves provider-prefixed model IDs:
+> **Note:** The model for each provider is fixed in the Kong `ai-proxy` plugin config. Gemini uses `gemini-2.5-flash`, Anthropic uses `claude-haiku-4-5-20251001`, OpenAI uses `gpt-4o`. Each call auto-generates a unique session UUID unless `--session` is passed.
 
-```bash
-# Gemini 2.5 Pro Preview
-./scripts/aira-chat.sh "Explain this codebase" --provider openrouter --model google/gemini-2.5-pro-preview
+---
 
-# Any other OpenRouter model — see openrouter.ai/models for IDs
-./scripts/aira-chat.sh "Hello" --provider openrouter --model mistralai/mistral-small-3.1-24b-instruct:free
+## AIRA Backend — Cost & Usage Tracking
+
+The AIRA backend (`aira-backend` service, port **8002**) receives Kong's `http-log` webhooks and stores token usage in SQLite.
+
+### How data flows
+
+```
+Kong request  →  ai-proxy (tokens + cost)  →  http-log  →  POST /ingest/event  →  SQLite
+                 pre-function (JWT decode,                       ↑
+                  X-Session-ID capture)      custom_fields_by_lua adds
+                                             user_id / department / session_id
 ```
 
-> **Note:** The `--model` flag is only forwarded for `openrouter`. For `anthropic` and `openai`, the model is set in the Kong `ai-proxy` plugin config.
+### Interactive API docs
+
+```
+http://localhost:8002/docs
+```
+
+### Query script
+
+`scripts/aira-usage.sh` wraps all backend endpoints into simple commands.
+
+```bash
+# Full cost dashboard (all time)
+./scripts/aira-usage.sh dashboard
+
+# Dashboard filtered by department and date range
+./scripts/aira-usage.sh dashboard --dept "R&D" --since 2026-04-01
+
+# Raw event log
+./scripts/aira-usage.sh events --limit 20
+
+# Sessions grouped by session GUID
+./scripts/aira-usage.sh sessions
+
+# Detail for one session
+./scripts/aira-usage.sh session <session-uuid>
+
+# Cost ranked by user
+./scripts/aira-usage.sh cost-by-user --since 2026-04-01
+
+# Cost detail for one user
+./scripts/aira-usage.sh cost-user engineer-001
+
+# Cost ranked by department
+./scripts/aira-usage.sh cost-by-dept
+
+# Cost detail for one department
+./scripts/aira-usage.sh cost-dept "R&D" --since 2026-04-01
+
+# Open SQLite shell directly in the container
+./scripts/aira-usage.sh db
+```
+
+Available filters (combine freely): `--since YYYY-MM-DD`, `--until YYYY-MM-DD`, `--user <id>`, `--dept <name>`, `--provider anthropic|openai|gemini`, `--session <uuid>`, `--limit <n>`
+
+### Backend tests
+
+```bash
+cd backend
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/pytest test_main.py -v
+```
+
+20 tests covering ingest, idempotency, cost calculation, sessions, cost-by-user, cost-by-department, dashboard, and date filters.
+
+---
 
 ## Stop
 
@@ -174,13 +240,21 @@ docker compose down
 ## Architecture
 
 ```
-Client (AIRA Client / any tool)
-  └─ POST /openai/v1/chat/completions  Bearer JWT
-       └─ Kong AI Gateway :8000
-            ├─ openid-connect     → validate JWT, extract team_id + department
-            ├─ ai-prompt-guard    → block PII patterns
-            ├─ ai-rate-limiting-advanced → check token budget (Redis counter)
-            ├─ ai-proxy           → inject upstream API key, normalise format
-            │    └─ Upstream: OpenAI / Anthropic
-            └─ http-log           → POST usage event to AIRA backend :8002
+Client (aira-chat.sh / any tool)
+  │   Bearer JWT  +  X-Session-ID header
+  └─► Kong AI Gateway :8000
+       ├─ openid-connect          → validate JWT, forward claims upstream
+       ├─ pre-function (Lua)      → decode JWT, capture X-Session-ID
+       │                             → kong.ctx.shared: user_id, department, session_id
+       ├─ ai-prompt-guard         → block PII (SSN, card numbers)
+       ├─ ai-rate-limiting-advanced → token budget cap (500k/hr)
+       ├─ ai-proxy                → inject API key, normalise to provider format
+       │    └─► Upstream: OpenAI / Anthropic / Gemini
+       ├─ file-log                → append NDJSON to logs/aira-access.log
+       └─ http-log                → POST usage event → AIRA Backend :8002
+                                        └─► SQLite: usage_events
+                                              ├─ /usage/dashboard
+                                              ├─ /usage/cost/by-user
+                                              ├─ /usage/cost/by-department
+                                              └─ /usage/sessions
 ```

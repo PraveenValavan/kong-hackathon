@@ -76,12 +76,13 @@ services:
       # Upstream API keys available to request-transformer plugin
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     ports:
       - "8000:8000"   # proxy
       - "8001:8001"   # admin API
     volumes:
       - ./kong.yml:/kong/kong.yml:ro
+      - ../logs:/logs                  # file-log writes aira-access.log here
     networks:
       - aira-kong
     healthcheck:
@@ -90,6 +91,25 @@ services:
       timeout: 5s
       retries: 5
 
+  aira-backend:
+    build:
+      context: ../backend
+    container_name: aira-backend
+    ports:
+      - "8002:8002"
+    volumes:
+      - aira-data:/data
+    networks:
+      - aira-kong
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   aira-kong:
     driver: bridge
+
+volumes:
+  aira-data:
