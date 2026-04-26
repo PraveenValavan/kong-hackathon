@@ -95,6 +95,8 @@ services:
     build:
       context: ../backend
     container_name: aira-backend
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     ports:
       - "8002:8002"
     volumes:
