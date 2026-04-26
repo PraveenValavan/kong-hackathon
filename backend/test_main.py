@@ -303,3 +303,51 @@ def test_cost_date_range_filter():
     row = next((r for r in data if r["user_id"] == "alice"), None)
     assert row is not None
     assert row["requests"] == 1  # only the today event
+
+
+# ── Forecast ──────────────────────────────────────────────────────────────────
+
+from unittest.mock import patch, MagicMock
+
+def _mock_claude(text: str):
+    msg = MagicMock()
+    msg.content = [MagicMock(text=text)]
+    return msg
+
+FORECAST_JSON = '{"narrative":"Test forecast.","projected_eom":100.0,"potential_saving":20.0,"risk_teams":["nlp-platform"]}'
+
+def test_forecast_returns_expected_shape():
+    _clear()
+    client.post("/ingest/event", json=_event())
+    with patch("main.anthropic") as mock_anthropic:
+        mock_anthropic.Anthropic.return_value.messages.create.return_value = _mock_claude(FORECAST_JSON)
+        resp = client.get("/forecast")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "narrative" in data
+    assert "projected_eom" in data
+    assert "potential_saving" in data
+    assert "risk_teams" in data
+    assert "generated_at" in data
+    assert data["department"] is None
+
+def test_forecast_department_filter():
+    _clear()
+    client.post("/ingest/event", json=_event(department="R&D"))
+    rd_json = '{"narrative":"R&D forecast.","projected_eom":50.0,"potential_saving":10.0,"risk_teams":["nlp-platform"]}'
+    with patch("main.anthropic") as mock_anthropic:
+        mock_anthropic.Anthropic.return_value.messages.create.return_value = _mock_claude(rd_json)
+        resp = client.get("/forecast?department=R%26D")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["department"] == "R&D"
+    assert data["narrative"] == "R&D forecast."
+
+def test_forecast_handles_no_data():
+    _clear()
+    with patch("main.anthropic") as mock_anthropic:
+        mock_anthropic.Anthropic.return_value.messages.create.return_value = _mock_claude(
+            '{"narrative":"No data.","projected_eom":0.0,"potential_saving":0.0,"risk_teams":[]}'
+        )
+        resp = client.get("/forecast")
+    assert resp.status_code == 200
