@@ -333,15 +333,25 @@ def test_forecast_returns_expected_shape():
 
 def test_forecast_department_filter():
     _clear()
-    client.post("/ingest/event", json=_event(department="R&D"))
+    # Insert events for two departments — only R&D should appear in the scoped forecast prompt
+    client.post("/ingest/event", json=_event(event_id="req-rd-1", department="R&D", cost=0.05))
+    client.post("/ingest/event", json=_event(event_id="req-eng-1", department="Engineering", team_id="platform", cost=0.10))
     rd_json = '{"narrative":"R&D forecast.","projected_eom":50.0,"potential_saving":10.0,"risk_teams":["nlp-platform"]}'
+    captured_prompt = {}
+    def capture_create(**kwargs):
+        captured_prompt["messages"] = kwargs.get("messages", [])
+        return _mock_claude(rd_json)
     with patch("main.anthropic") as mock_anthropic:
-        mock_anthropic.Anthropic.return_value.messages.create.return_value = _mock_claude(rd_json)
+        mock_anthropic.Anthropic.return_value.messages.create.side_effect = capture_create
         resp = client.get("/forecast?department=R%26D")
     assert resp.status_code == 200
     data = resp.json()
     assert data["department"] == "R&D"
     assert data["narrative"] == "R&D forecast."
+    # Verify the prompt sent to Claude mentions R&D but not Engineering
+    prompt_text = captured_prompt["messages"][0]["content"]
+    assert "department: R&D" in prompt_text
+    assert "Engineering" not in prompt_text
 
 def test_forecast_handles_no_data():
     _clear()
