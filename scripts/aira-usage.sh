@@ -122,9 +122,32 @@ case "$CMD" in
     ;;
 
   db)
-    echo "▶ Opening SQLite shell (type .quit to exit)"
-    docker exec -it aira-backend sqlite3 /data/aira-usage.db \
-      -cmd ".headers on" -cmd ".mode column"
+    echo "▶ Opening SQLite shell via Python (type quit() or Ctrl-D to exit)"
+    docker exec -it aira-backend python3 -c "
+import sqlite3, sys, readline, traceback
+conn = sqlite3.connect('/data/aira-usage.db')
+conn.row_factory = sqlite3.Row
+cur = conn.cursor()
+while True:
+    try:
+        sql = input('sqlite> ').strip()
+        if not sql:
+            continue
+        cur.execute(sql)
+        rows = cur.fetchall()
+        if rows:
+            print('\t'.join(rows[0].keys()))
+            print('\t'.join(['---'] * len(rows[0].keys())))
+            for r in rows:
+                print('\t'.join(str(v) for v in r))
+        else:
+            conn.commit()
+    except (EOFError, KeyboardInterrupt):
+        break
+    except Exception as e:
+        print(f'Error: {e}')
+conn.close()
+"
     ;;
 
   help|*)
