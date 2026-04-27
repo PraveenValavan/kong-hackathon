@@ -81,22 +81,15 @@ Kong's `openid-connect` plugin forwards `team_id` and `department` as `x-team-id
 
 ## Call Kong AI Gateway
 
-All AI calls use a unified OpenAI-compatible format. Kong's `ai-proxy` plugin normalises the request to the correct provider format automatically.
+All AI calls go to the unified `/chat` endpoint. Kong's `ai-proxy-advanced` plugin routes traffic between `claude-haiku-4-5` (2/3 of requests) and `claude-sonnet-4-6` (1/3) via round-robin. Do not include a `model` field — the balancer selects it.
 
 ```bash
 TOKEN=<paste token here>
 
-# OpenAI — gpt-4o (default model set in ai-proxy config)
-curl -X POST http://localhost:8000/openai/v1/chat/completions \
+curl -X POST http://localhost:8000/chat/v1/messages \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'
-
-# Anthropic — claude-haiku (via OpenAI-compatible format, ai-proxy translates)
-curl -X POST http://localhost:8000/anthropic/v1/chat/completions \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Hello"}]}'
+  -d '{"max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'
 ```
 
 > **Note:** Real API keys in `.env` required. Without them Kong forwards the request but the upstream rejects with 401.
@@ -106,14 +99,14 @@ curl -X POST http://localhost:8000/anthropic/v1/chat/completions \
 | Plugin | Applied to | Purpose |
 |---|---|---|
 | `openid-connect` | Global | Validates Bearer JWT, forwards `team_id`/`department` as upstream headers |
-| `ai-proxy` | Per route | Provider auth injection, request/response normalisation, token extraction |
-| `ai-rate-limiting-advanced` | Per route (OpenAI, Anthropic, Gemini) | Token-based rate limiting (500k tokens/hour), maps directly to cost |
-| `ai-prompt-guard` | Per route | Blocks SSN, credit card numbers, and credential patterns before they reach the LLM |
+| `ai-proxy-advanced` | `chat-route` | Round-robin load balancing across haiku (weight 100) and sonnet (weight 50), with automatic failover |
+| `ai-rate-limiting-advanced` | `chat-route` | Token-based rate limiting (500k tokens/hour), maps directly to cost |
+| `ai-prompt-guard` | `chat-route` | Blocks SSN, credit card numbers, and credential patterns before they reach the LLM |
 | `http-log` | Global | Emits full usage event (with token counts) to AIRA backend after each call |
 
 ## Token Usage in Responses
 
-The `ai-proxy` plugin automatically extracts token usage and makes it available in:
+The `ai-proxy-advanced` plugin automatically extracts token usage and makes it available in:
 - Response body: `usage.prompt_tokens`, `usage.completion_tokens`
 - Kong log entry (forwarded to AIRA backend via `http-log`)
 
@@ -123,14 +116,14 @@ The `ai-proxy` plugin automatically extracts token usage and makes it available 
 # List all plugins (verify AI plugins are loaded)
 curl http://localhost:8001/plugins | jq '[.data[].name]'
 
-# Check ai-proxy config on openai-route
-curl http://localhost:8001/routes/openai-route/plugins
+# Check ai-proxy-advanced config on chat-route
+curl http://localhost:8001/routes/chat-route/plugins
 
 # Check Kong license
 curl http://localhost:8001/license
 
 # Check token rate limit counters
-curl http://localhost:8001/routes/openai-route/plugins | jq '.data[] | select(.name=="ai-rate-limiting-advanced")'
+curl http://localhost:8001/routes/chat-route/plugins | jq '.data[] | select(.name=="ai-rate-limiting-advanced")'
 ```
 
 ## Chat Script
@@ -140,14 +133,14 @@ curl http://localhost:8001/routes/openai-route/plugins | jq '.data[] | select(.n
 **Prerequisites:** Docker stack running, `curl` and `jq` installed.
 
 ```bash
-# Default: Anthropic, engineering role
+# Default: engineering role — balancer picks haiku or sonnet automatically
 ./scripts/aira-chat.sh "Explain rate limiting"
 
-# OpenAI, finops role
-./scripts/aira-chat.sh "Summarise last month's spend" --provider openai --role finops
+# finops role
+./scripts/aira-chat.sh "Summarise last month's spend" --role finops
 
-# Gemini, datascience role
-./scripts/aira-chat.sh "What is a transformer model?" --provider gemini --role datascience
+# datascience role
+./scripts/aira-chat.sh "What is a transformer model?" --role datascience
 
 # Pin a session ID to group multiple turns together
 SESSION=$(uuidgen)
@@ -155,10 +148,9 @@ SESSION=$(uuidgen)
 ./scripts/aira-chat.sh "Follow-up"      --session $SESSION
 ```
 
-Available roles: `engineering` | `finops` | `admin` | `datascience`  
-Available providers: `anthropic` | `openai` | `gemini`
+Available roles: `engineering` | `finops` | `admin` | `datascience`
 
-> **Note:** The model for each provider is fixed in the Kong `ai-proxy` plugin config. Gemini uses `gemini-2.5-flash`, Anthropic uses `claude-haiku-4-5-20251001`, OpenAI uses `gpt-4o`. Each call auto-generates a unique session UUID unless `--session` is passed.
+> **Note:** The model is selected automatically by Kong's `ai-proxy-advanced` balancer — `claude-haiku-4-5` (~67%) for cost efficiency, `claude-sonnet-4-6` (~33%) for capability. The actual model used is shown in each response. Each call auto-generates a unique session UUID unless `--session` is passed.
 
 ---
 

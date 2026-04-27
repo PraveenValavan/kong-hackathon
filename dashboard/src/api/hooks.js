@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { apiFetch, sinceFromFilter } from './client';
+import { useState, useEffect, useCallback } from 'react';
+import { apiFetch, apiPut, sinceFromFilter } from './client';
 
 function useQuery(path, params, deps) {
   const [data, setData] = useState(null);
@@ -42,4 +42,32 @@ export function useDeptCost(timeFilter) {
 
 export function useForecast(department) {
   return useQuery('/forecast', { department: department || undefined }, [department]);
+}
+
+export function useTeamConfigs() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch('/config/teams')
+      .then(d => { setData(d); setError(null); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const save = useCallback(async (teamId, updates) => {
+    const updated = await apiPut(`/config/teams/${teamId}`, updates);
+    setData(prev => prev.map(t => t.team_id === teamId ? updated : t));
+    return updated;
+  }, []);
+
+  return { data, loading, error, reload: load, save };
+}
+
+export function useModels() {
+  return useQuery('/config/models', {}, []);
 }

@@ -45,29 +45,38 @@ export function SpendLineChart({ byDay }) {
 }
 
 export function BarChart({ models }) {
-  const data = models ?? [];
+  const data = (models ?? []).slice(0, 4);
   const maxV = Math.max(...data.map(d => d.requests ?? 0), 1);
-  const barW = 60, gap = 40, startX = 40;
   const colors = ['#f0a500', '#3b82f6', '#a855f7', '#22c55e'];
 
+  const VW = 380, VH = 130;
+  const PAD_L = 12, PAD_R = 12, PAD_TOP = 22, PAD_BOT = 26;
+  const chartW = VW - PAD_L - PAD_R;
+  const chartH = VH - PAD_TOP - PAD_BOT;
+  const n = data.length || 1;
+  const slotW = chartW / n;
+  const barW = Math.min(52, slotW * 0.48);
+  const baseY = PAD_TOP + chartH;
+
   return (
-    <svg className="chart" width="100%" height="120" viewBox="0 0 380 120" preserveAspectRatio="none">
-      {data.slice(0, 4).map((d, i) => {
-        const h = Math.max((d.requests / maxV) * 95, 2);
-        const x = startX + i * (barW + gap);
-        const y = 110 - h;
+    <svg className="chart" width="100%" height="130" viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="none">
+      <line x1={PAD_L} y1={baseY} x2={VW - PAD_R} y2={baseY} stroke="#2a2a32" strokeWidth="1"/>
+      {data.map((d, i) => {
+        const h = Math.max((d.requests / maxV) * chartH, 2);
+        const cx = PAD_L + (i + 0.5) * slotW;
+        const x = cx - barW / 2;
+        const y = baseY - h;
         const label = (d.model ?? '').split('-').slice(-1)[0];
         return (
           <g key={d.model ?? i}>
-            <rect x={x} y={y} width={barW} height={h} rx="2" fill={colors[i]} opacity="0.8"/>
-            <text x={x + barW / 2} y="108" textAnchor="middle" fill="#555560" fontSize="8" fontFamily="IBM Plex Mono">{label}</text>
-            <text x={x + barW / 2} y={y - 4} textAnchor="middle" fill={colors[i]} fontSize="9" fontFamily="Syne,sans-serif" fontWeight="700">
+            <rect x={x} y={y} width={barW} height={h} rx="2" fill={colors[i % colors.length]} opacity="0.85"/>
+            <text x={cx} y={baseY + 14} textAnchor="middle" fill="#555560" fontSize="8" fontFamily="IBM Plex Mono">{label}</text>
+            <text x={cx} y={y - 5} textAnchor="middle" fill={colors[i % colors.length]} fontSize="9" fontFamily="Syne,sans-serif" fontWeight="700">
               {d.requests > 999 ? `${(d.requests / 1000).toFixed(1)}k` : d.requests}
             </text>
           </g>
         );
       })}
-      <line x1="0" y1="110" x2="380" y2="110" stroke="#2a2a32" strokeWidth="1"/>
     </svg>
   );
 }
@@ -76,44 +85,48 @@ export function DonutChart({ byProvider }) {
   const items = byProvider ?? [];
   const total = items.reduce((s, d) => s + (d.total_tokens ?? 0), 0);
   const colors = { anthropic: '#a855f7', openai: '#3b82f6', google: '#f0a500', gemini: '#f0a500' };
-  const R = 45, cx = 60, cy = 60, circ = 2 * Math.PI * R;
+
+  // Fixed square SVG — never use preserveAspectRatio="none" on circles
+  const R = 42, CX = 56, CY = 56, SIZE = 112;
+  const circ = 2 * Math.PI * R;
   let offset = 0;
   const slices = items.map(d => {
     const pct = total > 0 ? (d.total_tokens ?? 0) / total : 0;
     const dash = pct * circ;
-    const slice = { ...d, dash, offset, pct };
+    const s = { ...d, dash, offset, pct };
     offset += dash;
-    return slice;
+    return s;
   });
 
   return (
-    <svg className="chart" width="100%" height="120" viewBox="0 0 380 120" preserveAspectRatio="none">
-      <circle cx={cx} cy={cy} r={R} fill="none" stroke="#1a1a20" strokeWidth="18"/>
-      {slices.map((s, i) => (
-        <circle key={i} cx={cx} cy={cy} r={R} fill="none"
-          stroke={colors[s.provider] ?? '#555560'}
-          strokeWidth="18"
-          strokeDasharray={`${s.dash} ${circ - s.dash}`}
-          strokeDashoffset={-s.offset}
-          transform={`rotate(-90 ${cx} ${cy})`}
-        />
-      ))}
-      <text x={cx} y="57" textAnchor="middle" fill="#e8e8ec" fontFamily="Syne,sans-serif" fontSize="13" fontWeight="700">
-        {total > 1_000_000 ? `${(total / 1_000_000).toFixed(1)}M` : total}
-      </text>
-      <text x={cx} y="70" textAnchor="middle" fill="#555560" fontFamily="IBM Plex Mono" fontSize="8">tokens</text>
-      {slices.slice(0, 3).map((s, i) => {
-        const cols = [135, 135, 230];
-        const rows = [30, 70, 30];
-        return (
-          <g key={i}>
-            <text x={cols[i]} y={rows[i]} fill="#9898a8" fontFamily="IBM Plex Mono" fontSize="9">{s.provider}</text>
-            <text x={cols[i]} y={rows[i] + 13} fill={colors[s.provider] ?? '#555560'} fontFamily="Syne,sans-serif" fontSize="14" fontWeight="700">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ flexShrink: 0 }}>
+        <circle cx={CX} cy={CY} r={R} fill="none" stroke="#1a1a20" strokeWidth="16"/>
+        {slices.map((s, i) => (
+          <circle key={i} cx={CX} cy={CY} r={R} fill="none"
+            stroke={colors[s.provider] ?? '#555560'}
+            strokeWidth="16"
+            strokeDasharray={`${s.dash} ${circ - s.dash}`}
+            strokeDashoffset={-s.offset}
+            transform={`rotate(-90 ${CX} ${CY})`}
+          />
+        ))}
+        <text x={CX} y={CY - 5} textAnchor="middle" fill="#e8e8ec" fontFamily="Syne,sans-serif" fontSize="13" fontWeight="700">
+          {total > 1_000_000 ? `${(total / 1_000_000).toFixed(1)}M` : total.toLocaleString()}
+        </text>
+        <text x={CX} y={CY + 9} textAnchor="middle" fill="#555560" fontFamily="IBM Plex Mono" fontSize="8">tokens</text>
+      </svg>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {slices.map((s, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <span style={{ fontSize: 9, color: '#9898a8', fontFamily: 'IBM Plex Mono' }}>{s.provider}</span>
+            <span style={{ fontSize: 15, fontWeight: 700, fontFamily: 'Syne,sans-serif', color: colors[s.provider] ?? '#555560' }}>
               {Math.round(s.pct * 100)}%
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

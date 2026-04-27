@@ -1,4 +1,15 @@
+import { useState } from 'react';
+
+const ROLES = [
+  { value: 'admin',       label: 'Admin',       color: '#f0a500' },
+  { value: 'engineering', label: 'Engineering', color: '#3b82f6' },
+  { value: 'finops',      label: 'FinOps',      color: '#22c55e' },
+];
+
 export default function Sidebar({ currentPage, currentRole, access, onNavigate, onRoleChange }) {
+  const [roleOpen, setRoleOpen] = useState(false);
+  const activeRole = ROLES.find(r => r.value === currentRole) ?? ROLES[0];
+
   const navItems = [
     { key: 'overview',   label: 'Overview',        section: 'Monitor',  icon: <OverviewIcon /> },
     { key: 'cost',       label: 'Cost & Usage',    section: null,       icon: <CostIcon /> },
@@ -32,13 +43,14 @@ export default function Sidebar({ currentPage, currentRole, access, onNavigate, 
           const showSection = item.section && item.section !== lastSection;
           if (showSection) lastSection = item.section;
           const locked = !access.includes(item.key);
+          if (locked) return null;
           const active = currentPage === item.key;
           return (
             <div key={item.key}>
               {showSection && <div className="nav-section-label">{item.section}</div>}
               <div
-                className={`nav-item${active ? ' active' : ''}${locked ? ' locked' : ''}`}
-                onClick={() => !locked && onNavigate(item.key)}
+                className={`nav-item${active ? ' active' : ''}`}
+                onClick={() => onNavigate(item.key)}
               >
                 <span className="nav-icon">{item.icon}</span>
                 {item.label}
@@ -55,15 +67,31 @@ export default function Sidebar({ currentPage, currentRole, access, onNavigate, 
 
       <div className="role-switcher">
         <div className="role-label">Viewing as</div>
-        <select
-          className="role-select"
-          value={currentRole}
-          onChange={e => onRoleChange(e.target.value)}
-        >
-          <option value="finops">FinOps</option>
-          <option value="engineering">Engineering</option>
-          <option value="admin">Admin</option>
-        </select>
+        <div className="role-dropdown">
+          <button
+            className="role-trigger"
+            style={{ '--role-color': activeRole.color }}
+            onClick={() => setRoleOpen(o => !o)}
+          >
+            <span className="role-dot" style={{ background: activeRole.color }} />
+            {activeRole.label}
+            <span className="role-chevron">{roleOpen ? '▲' : '▼'}</span>
+          </button>
+          {roleOpen && (
+            <div className="role-menu">
+              {ROLES.map(r => (
+                <div
+                  key={r.value}
+                  className={`role-option${r.value === currentRole ? ' active' : ''}`}
+                  onClick={() => { onRoleChange(r.value); setRoleOpen(false); }}
+                >
+                  <span className="role-dot" style={{ background: r.color }} />
+                  {r.label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );

@@ -2,72 +2,26 @@ _format_version: "3.0"
 _transform: true
 
 # ─── Services ───────────────────────────────────────────────────────────────
-# Kong AI Gateway: services act as provider targets.
-# ai-proxy handles auth injection and request/response normalisation natively —
-# no request-transformer needed.
 
 services:
-  - name: openai-service
-    url: https://api.openai.com
-    tags: [aira, openai]
-
-  - name: anthropic-service
+  - name: ai-service
     url: https://api.anthropic.com
-    tags: [aira, anthropic]
-
-  - name: gemini-service
-    url: https://generativelanguage.googleapis.com
-    tags: [aira, gemini]
+    tags: [aira]
 
 # ─── Routes ─────────────────────────────────────────────────────────────────
 
 routes:
-  - name: openai-route
-    service: openai-service
+  - name: chat-route
+    service: ai-service
     paths:
-      - /openai
+      - /chat
     strip_path: true
-    tags: [aira, openai]
-
-  - name: anthropic-route
-    service: anthropic-service
-    paths:
-      - /anthropic
-    strip_path: true
-    tags: [aira, anthropic]
-
-  - name: anthropic-sonnet-route
-    service: anthropic-service
-    paths:
-      - /anthropic
-    headers:
-      x-model: [sonnet]
-    strip_path: true
-    tags: [aira, anthropic]
-
-  - name: anthropic-opus-route
-    service: anthropic-service
-    paths:
-      - /anthropic
-    headers:
-      x-model: [opus]
-    strip_path: true
-    tags: [aira, anthropic]
-
-  - name: gemini-route
-    service: gemini-service
-    paths:
-      - /gemini
-    strip_path: true
-    tags: [aira, gemini]
+    tags: [aira]
 
 # ─── Plugins ────────────────────────────────────────────────────────────────
 
 plugins:
-  # ── Auth ────────────────────────────────────────────────────────────────────
-  # OIDC — validates Bearer token against mock IdP on every request.
-  # Forwards JWT claims as upstream headers so the AIRA backend knows
-  # which user/team/department made each call.
+  # ── Auth (global) ────────────────────────────────────────────────────────
   - name: openid-connect
     config:
       issuer: http://mock-oauth2:8080/default/.well-known/openid-configuration
@@ -88,235 +42,80 @@ plugins:
         - team_id:x-team-id
         - department:x-department
 
-  # ── AI Proxy (replaces request-transformer) ─────────────────────────────────
-  # Kong AI Gateway's ai-proxy plugin handles provider-specific auth injection,
-  # request/response format normalisation, and automatic token usage extraction.
-  # Token counts are available in Kong logs and upstream headers after each call.
+  # ── AI Proxy Advanced ────────────────────────────────────────────────────
+  # round-robin with weights: haiku gets 2/3 of traffic (cheaper),
+  # sonnet gets 1/3 (more capable). Automatic failover between them.
 
-  - name: ai-proxy
-    route: openai-route
+  - name: ai-proxy-advanced
+    route: chat-route
     config:
-      route_type: llm/v1/chat
-      auth:
-        header_name: Authorization
-        header_value: "{vault://env/OPENAI_API_KEY}"
-      model:
-        provider: openai
-        name: gpt-4o
-        options:
-          max_tokens: 4096
-          temperature: 0.7
-          input_cost: 2.50    # USD per 1M prompt tokens (gpt-4o)
-          output_cost: 10.00  # USD per 1M completion tokens (gpt-4o)
-      logging:
-        log_statistics: true   # token counts + model → Kong error log
-        log_payloads: false    # never log payloads — upstream auth headers leak into logs
+      balancer:
+        algorithm: round-robin
 
-  # ── Anthropic cost variables (USD per 1M tokens) — edit here to reprice ──────
-  # &c-<model>-in / &c-<model>-out anchors are YAML variables resolved before
-  # Kong loads the config. Reference them with *c-<model>-in / *c-<model>-out.
-  #
-  #   haiku-4-5:   in=0.80   out=4.00
-  #   sonnet-4-6:  in=3.00   out=15.00
-  #   opus-4-7:    in=15.00  out=75.00
+      targets:
+        - route_type: llm/v1/chat
+          weight: 100
+          auth:
+            header_name: x-api-key
+            header_value: "{vault://env/ANTHROPIC_API_KEY}"
+          model:
+            provider: anthropic
+            name: claude-haiku-4-5-20251001
+            options:
+              max_tokens: 4096
+              temperature: 0.7
+              anthropic_version: "2023-06-01"
+              input_cost: 0.80    # USD per 1M prompt tokens
+              output_cost: 4.00   # USD per 1M completion tokens
+          logging:
+            log_statistics: true
+            log_payloads: false
 
-  - name: ai-proxy
-    route: anthropic-route        # default → haiku
-    config:
-      route_type: llm/v1/chat
-      auth:
-        header_name: x-api-key
-        header_value: "{vault://env/ANTHROPIC_API_KEY}"
-      model:
-        provider: anthropic
-        name: claude-haiku-4-5-20251001
-        options:
-          max_tokens: 4096
-          temperature: 0.7
-          anthropic_version: "2023-06-01"
-          input_cost:  &c-haiku-in  0.80
-          output_cost: &c-haiku-out 4.00
-      logging:
-        log_statistics: true
-        log_payloads: false    # never log payloads — upstream auth headers leak into logs
+        - route_type: llm/v1/chat
+          weight: 50
+          auth:
+            header_name: x-api-key
+            header_value: "{vault://env/ANTHROPIC_API_KEY}"
+          model:
+            provider: anthropic
+            name: claude-sonnet-4-6
+            options:
+              max_tokens: 4096
+              temperature: 0.7
+              anthropic_version: "2023-06-01"
+              input_cost: 3.00    # USD per 1M prompt tokens
+              output_cost: 15.00  # USD per 1M completion tokens
+          logging:
+            log_statistics: true
+            log_payloads: false
 
-  - name: ai-proxy
-    route: anthropic-sonnet-route
-    config:
-      route_type: llm/v1/chat
-      auth:
-        header_name: x-api-key
-        header_value: "{vault://env/ANTHROPIC_API_KEY}"
-      model:
-        provider: anthropic
-        name: claude-sonnet-4-6
-        options:
-          max_tokens: 4096
-          temperature: 0.7
-          anthropic_version: "2023-06-01"
-          input_cost:  &c-sonnet-in  3.00
-          output_cost: &c-sonnet-out 15.00
-      logging:
-        log_statistics: true
-        log_payloads: false    # never log payloads — upstream auth headers leak into logs
-
-  - name: ai-proxy
-    route: anthropic-opus-route
-    config:
-      route_type: llm/v1/chat
-      auth:
-        header_name: x-api-key
-        header_value: "{vault://env/ANTHROPIC_API_KEY}"
-      model:
-        provider: anthropic
-        name: claude-opus-4-7
-        options:
-          max_tokens: 4096
-          anthropic_version: "2023-06-01"
-          input_cost:  &c-opus-in  15.00
-          output_cost: &c-opus-out 75.00
-      logging:
-        log_statistics: true
-        log_payloads: false    # never log payloads — upstream auth headers leak into logs
-
-  # Strip the OIDC JWT before it reaches Google — Gemini rejects any Bearer token it doesn't own.
-  # ai-proxy adds the real API key as ?key= query param separately.
-  - name: request-transformer
-    route: gemini-route
-    config:
-      remove:
-        headers:
-          - Authorization
-
-  - name: ai-proxy
-    route: gemini-route
-    config:
-      route_type: llm/v1/chat
-      auth:
-        param_name: key
-        param_value: "{vault://env/GEMINI_API_KEY}"
-        param_location: query
-      model:
-        provider: gemini
-        name: gemini-2.5-flash
-        options:
-          max_tokens: 4096
-          temperature: 0.7
-          input_cost: 0.075   # USD per 1M prompt tokens (gemini-2.5-flash)
-          output_cost: 0.30   # USD per 1M completion tokens (gemini-2.5-flash)
-      logging:
-        log_statistics: true
-        log_payloads: false    # never log payloads — upstream auth headers leak into logs
-
-  # ── Token-Based Rate Limiting (replaces rate-limiting-advanced) ──────────────
-  # ai-rate-limiting-advanced counts tokens consumed rather than requests —
-  # directly aligned with cost. 500k tokens/hour per route for the PoC.
+  # ── Token-Based Rate Limiting ────────────────────────────────────────────
 
   - name: ai-rate-limiting-advanced
-    route: openai-route
-    config:
-      llm_providers:
-        - name: openai
-          limit: 500000
-          window_size: 3600
-
-  - name: ai-rate-limiting-advanced
-    route: anthropic-route
+    route: chat-route
     config:
       llm_providers:
         - name: anthropic
           limit: 500000
           window_size: 3600
 
-  - name: ai-rate-limiting-advanced
-    route: anthropic-sonnet-route
-    config:
-      llm_providers:
-        - name: anthropic
-          limit: 500000
-          window_size: 3600
-
-  - name: ai-rate-limiting-advanced
-    route: anthropic-opus-route
-    config:
-      llm_providers:
-        - name: anthropic
-          limit: 500000
-          window_size: 3600
-
-  - name: ai-rate-limiting-advanced
-    route: gemini-route
-    config:
-      llm_providers:
-        - name: gemini
-          limit: 500000
-          window_size: 3600
-
-  # ── PII / Content Guard (replaces planned custom filter) ────────────────────
-  # ai-prompt-guard blocks requests matching sensitive data patterns before
-  # they reach the upstream LLM — no custom middleware needed.
+  # ── PII / Content Guard ──────────────────────────────────────────────────
 
   - name: ai-prompt-guard
-    route: openai-route
+    route: chat-route
     config:
       deny_patterns:
-        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"          # SSN
-        - "\\b\\d{16}\\b"                         # Credit card
-        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"  # Credentials
+        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"                              # SSN
+        - "\\b\\d{16}\\b"                                            # Credit card
+        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"       # Credentials
       allow_all_conversation_history: true
 
-  - name: ai-prompt-guard
-    route: anthropic-route
-    config:
-      deny_patterns:
-        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
-        - "\\b\\d{16}\\b"
-        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
-      allow_all_conversation_history: true
-
-  - name: ai-prompt-guard
-    route: anthropic-sonnet-route
-    config:
-      deny_patterns:
-        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
-        - "\\b\\d{16}\\b"
-        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
-      allow_all_conversation_history: true
-
-  - name: ai-prompt-guard
-    route: anthropic-opus-route
-    config:
-      deny_patterns:
-        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
-        - "\\b\\d{16}\\b"
-        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
-      allow_all_conversation_history: true
-
-  - name: ai-prompt-guard
-    route: gemini-route
-    config:
-      deny_patterns:
-        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
-        - "\\b\\d{16}\\b"
-        - "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+"
-      allow_all_conversation_history: true
-
-  # ── Pre-function: stash OIDC upstream-bound claims into ctx.shared ──────────
-  # OIDC sets x-user-id / x-team-id on the upstream request (sent to the LLM),
-  # not on the inbound request. file-log reads the inbound request headers, so
-  # those claims are invisible to it. This pre-function runs after OIDC in the
-  # access phase and copies the service-request headers into kong.ctx.shared
-  # so custom_fields_by_lua in file-log can include them in the log entry.
+  # ── Pre-function: stash JWT claims into ctx.shared ───────────────────────
 
   - name: pre-function
     config:
       access:
         - |
-          -- OIDC has already validated the JWT by this phase.
-          -- Decode the Bearer token payload (base64 middle segment) to read claims.
-          -- No signature check needed here — OIDC already did that.
-          -- Extract JWT claims with Lua patterns — no JSON library needed.
-          -- OIDC already validated the token; we just need the payload values.
           local auth = kong.request.get_header("authorization") or ""
           local token = auth:match("^[Bb]earer%s+(.+)$")
           if token then
@@ -335,9 +134,8 @@ plugins:
             end
           end
           kong.ctx.shared.session_id = kong.request.get_header("x-session-id")
-          kong.ctx.shared.model_name = kong.request.get_header("x-model") or "haiku"
 
-  # ── File Log — structured NDJSON audit trail ───────────────────────────────
+  # ── File Log — structured NDJSON audit trail ─────────────────────────────
 
   - name: file-log
     config:
@@ -348,11 +146,8 @@ plugins:
         team_id:    "return kong.ctx.shared.aira_team_id"
         department: "return kong.ctx.shared.aira_department"
         session_id: "return kong.ctx.shared.session_id"
-        model_name: "return kong.ctx.shared.model_name"
 
-  # ── Usage Logging → AIRA Backend ────────────────────────────────────────────
-  # http-log emits the full Kong request/response log (including ai-proxy's
-  # token usage metadata) to the AIRA backend ingestion endpoint after each call.
+  # ── Usage Logging → AIRA Backend ─────────────────────────────────────────
 
   - name: http-log
     config:

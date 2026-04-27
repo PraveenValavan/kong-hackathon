@@ -3,40 +3,38 @@
 #
 # Usage:
 #   ./scripts/aira-chat.sh "Your message here"
-#   ./scripts/aira-chat.sh "Your message here" --provider gemini
-#   ./scripts/aira-chat.sh "Your message here" --provider anthropic
 #   ./scripts/aira-chat.sh "Your message here" --role finops
 #   ./scripts/aira-chat.sh "Your message here" --session <uuid>
 #
 # Options:
-#   --provider  anthropic | openai | gemini  (default: anthropic)
-#   --role      engineering | finops | admin | datascience  (default: engineering)
-#   --session   UUID to group requests into a session (auto-generated if omitted)
+#   --role     engineering | finops | admin | datascience  (default: engineering)
+#   --session  UUID to group requests into a session (auto-generated if omitted)
+#
+# Kong's ai-proxy-advanced balances traffic between claude-haiku (2/3) and
+# claude-sonnet (1/3). The model selected for each call is shown in the output.
 
 set -euo pipefail
 
-# ── Defaults ────────────────────────────────────────────────────────────────
+# ── Defaults ─────────────────────────────────────────────────────────────────
 KONG_PROXY="http://localhost:8000"
 IDP_URL="http://localhost:8080/default/token"
 CLIENT_ID="${AIRA_CLIENT_ID:-aira-local}"
 CLIENT_SECRET="${AIRA_CLIENT_SECRET:-aira-secret}"
-PROVIDER="anthropic"
 ROLE="engineering"
 SESSION_ID=""
 
-# ── Parse args ───────────────────────────────────────────────────────────────
+# ── Parse args ────────────────────────────────────────────────────────────────
 MESSAGE=""
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --provider) PROVIDER="$2"; shift 2 ;;
-    --role)     ROLE="$2";     shift 2 ;;
-    --session)  SESSION_ID="$2"; shift 2 ;;
-    *)          MESSAGE="$1";  shift   ;;
+    --role)    ROLE="$2";       shift 2 ;;
+    --session) SESSION_ID="$2"; shift 2 ;;
+    *)         MESSAGE="$1";    shift   ;;
   esac
 done
 
 if [[ -z "$MESSAGE" ]]; then
-  echo "Usage: $0 \"Your message\" [--provider anthropic|openai|gemini] [--role engineering|finops|admin|datascience] [--session <uuid>]"
+  echo "Usage: $0 \"Your message\" [--role engineering|finops|admin|datascience] [--session <uuid>]"
   exit 1
 fi
 
@@ -45,7 +43,7 @@ if [[ -z "$SESSION_ID" ]]; then
   SESSION_ID=$(uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())")
 fi
 
-# ── Get JWT token ────────────────────────────────────────────────────────────
+# ── Get JWT token ─────────────────────────────────────────────────────────────
 TOKEN=$(curl -sf -X POST "$IDP_URL" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&scope=${ROLE}" \
@@ -56,21 +54,21 @@ if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
   exit 1
 fi
 
-# ── Build request body ───────────────────────────────────────────────────────
+# ── Build request body ────────────────────────────────────────────────────────
+# No model field — ai-proxy-advanced selects the model via round-robin balancer.
 BODY=$(jq -n \
   --argjson content "$(echo "$MESSAGE" | jq -Rs .)" \
-  '{messages: [{role: "user", content: $content}]}')
+  '{max_tokens: 1024, messages: [{role: "user", content: $content}]}')
 
 # ── Call Kong AI Gateway ──────────────────────────────────────────────────────
-RESPONSE=$(curl -sf -X POST "${KONG_PROXY}/${PROVIDER}/v1/chat/completions" \
+RESPONSE=$(curl -sf -X POST "${KONG_PROXY}/chat/v1/messages" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "X-Session-ID: $SESSION_ID" \
   -d "$BODY")
 
-# ── Print result ─────────────────────────────────────────────────────────────
+# ── Print result ──────────────────────────────────────────────────────────────
 echo ""
-echo "Provider : $PROVIDER"
 echo "Model    : $(echo "$RESPONSE" | jq -r .model)"
 echo "Role     : $ROLE"
 echo "Session  : $SESSION_ID"

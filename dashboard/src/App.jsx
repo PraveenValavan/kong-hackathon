@@ -40,7 +40,7 @@ const PAGES = {
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('overview');
-  const [currentRole, setCurrentRole] = useState('finops');
+  const [currentRole, setCurrentRole] = useState('admin');
   const [timeFilter, setTimeFilter] = useState('30d');
 
   const access = ROLE_ACCESS[currentRole];

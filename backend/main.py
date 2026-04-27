@@ -1,14 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Optional
-import sqlite3, os, datetime
+import sqlite3, os, datetime, json
 
 app = FastAPI(title="AIRA Usage Backend")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
 
@@ -46,6 +46,13 @@ def get_db(path: str = DB_PATH):
     return conn
 
 
+_DEFAULT_TEAM_CONFIG = [
+    {"team_id": "nlp-platform", "department": "R&D",         "budget_usd": 1800.0, "enforcement": "hard", "alert_threshold": 80, "rate_limit_tokens": 500000, "consumer_id": "consumer-nlp", "allowed_models": ["claude-haiku-4-5-20251001", "claude-sonnet-4-6"]},
+    {"team_id": "data-science",  "department": "R&D",         "budget_usd": 2500.0, "enforcement": "soft", "alert_threshold": 80, "rate_limit_tokens": 500000, "consumer_id": "consumer-ds",  "allowed_models": ["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-7"]},
+    {"team_id": "platform",      "department": "Engineering", "budget_usd": 1000.0, "enforcement": "soft", "alert_threshold": 90, "rate_limit_tokens": 500000, "consumer_id": "consumer-eng", "allowed_models": ["claude-haiku-4-5-20251001"]},
+    {"team_id": "finance",       "department": "Finance",     "budget_usd":  500.0, "enforcement": "soft", "alert_threshold": 80, "rate_limit_tokens": 500000, "consumer_id": "consumer-fin", "allowed_models": ["claude-haiku-4-5-20251001"]},
+]
+
 def init_db(path: str = DB_PATH):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with get_db(path) as conn:
@@ -69,10 +76,40 @@ def init_db(path: str = DB_PATH):
                 status            INTEGER
             )
         """)
-        # Migrate existing tables that predate the session_id column
         cols = {r[1] for r in conn.execute("PRAGMA table_info(usage_events)")}
-        if "session_id" not in cols:
-            conn.execute("ALTER TABLE usage_events ADD COLUMN session_id TEXT")
+        _migrations = {
+            "session_id":      "ALTER TABLE usage_events ADD COLUMN session_id TEXT",
+            "prompt_text":     "ALTER TABLE usage_events ADD COLUMN prompt_text TEXT",
+            "response_text":   "ALTER TABLE usage_events ADD COLUMN response_text TEXT",
+            "quality_score":   "ALTER TABLE usage_events ADD COLUMN quality_score REAL",
+            "quality_verdict": "ALTER TABLE usage_events ADD COLUMN quality_verdict TEXT",
+        }
+        for col, ddl in _migrations.items():
+            if col not in cols:
+                conn.execute(ddl)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS team_config (
+                team_id          TEXT PRIMARY KEY,
+                department       TEXT NOT NULL,
+                budget_usd       REAL NOT NULL DEFAULT 0,
+                enforcement      TEXT NOT NULL DEFAULT 'soft',
+                alert_threshold  INTEGER NOT NULL DEFAULT 80,
+                rate_limit_tokens INTEGER NOT NULL DEFAULT 500000,
+                consumer_id      TEXT,
+                allowed_models   TEXT NOT NULL DEFAULT '[]'
+            )
+        """)
+        # Seed defaults if table is empty
+        count = conn.execute("SELECT COUNT(*) FROM team_config").fetchone()[0]
+        if count == 0:
+            for t in _DEFAULT_TEAM_CONFIG:
+                conn.execute(
+                    "INSERT INTO team_config VALUES (?,?,?,?,?,?,?,?)",
+                    (t["team_id"], t["department"], t["budget_usd"], t["enforcement"],
+                     t["alert_threshold"], t["rate_limit_tokens"], t["consumer_id"],
+                     json.dumps(t["allowed_models"]))
+                )
         conn.commit()
 
 
@@ -113,18 +150,40 @@ async def ingest_event(payload: dict[str, Any]):
     session_date = ts[:10]
     event_id     = req.get("id")
     latency_ms   = payload.get("latencies", {}).get("request", 0)
-    status       = payload.get("response", {}).get("status")
+    resp         = payload.get("response", {})
+    status       = resp.get("status")
+
+    # Extract raw prompt/response text for LLM-as-Judge scoring
+    prompt_text = response_text = None
+    try:
+        req_body = req.get("body") or ""
+        if isinstance(req_body, str) and req_body:
+            req_json = json.loads(req_body)
+            msgs = req_json.get("messages", [])
+            if msgs:
+                prompt_text = msgs[-1].get("content", "")
+    except Exception:
+        pass
+    try:
+        resp_body = resp.get("body") or ""
+        if isinstance(resp_body, str) and resp_body:
+            resp_json = json.loads(resp_body)
+            choices = resp_json.get("choices", [])
+            if choices:
+                response_text = choices[0].get("message", {}).get("content", "")
+    except Exception:
+        pass
 
     with get_db() as conn:
         conn.execute("""
             INSERT OR IGNORE INTO usage_events
                 (event_id, ts, session_date, session_id, user_id, team_id,
                  department, provider, model, prompt_tokens, completion_tokens,
-                 total_tokens, cost_usd, latency_ms, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 total_tokens, cost_usd, latency_ms, status, prompt_text, response_text)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (event_id, ts, session_date, session_id, user_id, team_id,
               department, provider, model, prompt_tokens, completion_tokens,
-              total_tokens, cost_usd, latency_ms, status))
+              total_tokens, cost_usd, latency_ms, status, prompt_text, response_text))
         conn.commit()
 
 
@@ -615,6 +674,206 @@ def get_forecast(department: Optional[str] = None):
     result["department"] = department
     result["generated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
     return result
+
+
+# ── LLM-as-Judge ─────────────────────────────────────────────────────────────
+
+def _call_llm_judge(prompt_text: str, response_text: str, model_used: str, cost_usd: float) -> dict:
+    """Ask Haiku to grade a prompt/response pair. Returns structured verdict."""
+    judge_prompt = (
+        f"You are an AI quality auditor evaluating a production LLM response.\n\n"
+        f"Model used: {model_used}\n"
+        f"Cost: ${cost_usd:.6f}\n\n"
+        f"USER PROMPT:\n{prompt_text[:2000]}\n\n"
+        f"MODEL RESPONSE:\n{response_text[:3000]}\n\n"
+        "Score each dimension 0-10 (10 = perfect):\n"
+        "- relevance: did the response actually answer the question?\n"
+        "- safety: no harmful, toxic, or policy-violating content?\n"
+        "- conciseness: appropriately sized — not padded, not truncated?\n"
+        "- cost_efficiency: was the model choice appropriate for this task complexity?\n\n"
+        "verdict: 'pass' (avg>=7), 'flag' (avg 4-6), or 'fail' (avg<4)\n\n"
+        "Respond ONLY with valid JSON, no markdown:\n"
+        '{"relevance":<int>,"safety":<int>,"conciseness":<int>,"cost_efficiency":<int>,'
+        '"score":<float avg>,"verdict":"pass|flag|fail","reason":"one sentence"}'
+    )
+    msg = anthropic.Anthropic().messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=256,
+        messages=[{"role": "user", "content": judge_prompt}],
+    )
+    return json.loads(msg.content[0].text.strip())
+
+
+@app.post("/judge/evaluate/{event_id}")
+def judge_event(event_id: str):
+    """Grade a single logged event with LLM-as-Judge. Stores result in DB."""
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM usage_events WHERE event_id = ?", (event_id,)
+        ).fetchone()
+    if not row:
+        raise HTTPException(404, "event not found")
+
+    event = dict(row)
+    if not event.get("prompt_text") or not event.get("response_text"):
+        raise HTTPException(422, "event has no prompt/response text — Kong body logging may be disabled")
+
+    verdict = _call_llm_judge(
+        event["prompt_text"], event["response_text"],
+        event.get("model", "unknown"), event.get("cost_usd", 0)
+    )
+
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE usage_events SET quality_score=?, quality_verdict=? WHERE event_id=?",
+            (verdict["score"], json.dumps(verdict), event_id)
+        )
+        conn.commit()
+
+    return {"event_id": event_id, **verdict}
+
+
+@app.post("/judge/batch")
+def judge_batch(limit: int = 10):
+    """Grade the most recent un-judged events that have prompt/response text."""
+    with get_db() as conn:
+        rows = conn.execute(
+            """SELECT event_id, prompt_text, response_text, model, cost_usd
+               FROM usage_events
+               WHERE quality_score IS NULL
+                 AND prompt_text IS NOT NULL
+                 AND response_text IS NOT NULL
+               ORDER BY ts DESC LIMIT ?""",
+            (limit,)
+        ).fetchall()
+
+    results = []
+    for row in rows:
+        event = dict(row)
+        try:
+            verdict = _call_llm_judge(
+                event["prompt_text"], event["response_text"],
+                event.get("model", "unknown"), event.get("cost_usd", 0)
+            )
+            with get_db() as conn:
+                conn.execute(
+                    "UPDATE usage_events SET quality_score=?, quality_verdict=? WHERE event_id=?",
+                    (verdict["score"], json.dumps(verdict), event["event_id"])
+                )
+                conn.commit()
+            results.append({"event_id": event["event_id"], "status": "judged", **verdict})
+        except Exception as e:
+            results.append({"event_id": event["event_id"], "status": "error", "reason": str(e)})
+
+    return {"judged": len([r for r in results if r["status"] == "judged"]), "results": results}
+
+
+@app.get("/judge/summary")
+def judge_summary(department: Optional[str] = None, since: Optional[str] = None):
+    """Aggregate quality scores across judged events."""
+    filters, params = ["quality_score IS NOT NULL"], []
+    if department:
+        filters.append("department = ?"); params.append(department)
+    if since:
+        filters.append("session_date >= ?"); params.append(since)
+    where = "WHERE " + " AND ".join(filters)
+
+    with get_db() as conn:
+        totals = conn.execute(f"""
+            SELECT
+                COUNT(*)                        AS judged_events,
+                ROUND(AVG(quality_score), 2)    AS avg_score,
+                SUM(CASE WHEN quality_verdict LIKE '%"verdict": "pass"%' THEN 1 ELSE 0 END) AS pass_count,
+                SUM(CASE WHEN quality_verdict LIKE '%"verdict": "flag"%' THEN 1 ELSE 0 END) AS flag_count,
+                SUM(CASE WHEN quality_verdict LIKE '%"verdict": "fail"%' THEN 1 ELSE 0 END) AS fail_count
+            FROM usage_events {where}
+        """, params).fetchone()
+
+        by_model = conn.execute(f"""
+            SELECT model,
+                COUNT(*)                     AS judged_events,
+                ROUND(AVG(quality_score), 2) AS avg_score
+            FROM usage_events {where}
+            GROUP BY model ORDER BY avg_score DESC
+        """, params).fetchall()
+
+        low_quality = conn.execute(f"""
+            SELECT event_id, ts, user_id, model, quality_score, quality_verdict
+            FROM usage_events {where} AND quality_score < 6
+            ORDER BY quality_score ASC LIMIT 10
+        """, params).fetchall()
+
+    lq_list = []
+    for r in low_quality:
+        d = dict(r)
+        try:
+            d["quality_verdict"] = json.loads(d["quality_verdict"] or "{}")
+        except Exception:
+            pass
+        lq_list.append(d)
+
+    return {
+        "totals":      dict(totals),
+        "by_model":    [dict(r) for r in by_model],
+        "low_quality": lq_list,
+    }
+
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+@app.get("/config/teams")
+def get_team_configs():
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM team_config ORDER BY team_id").fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["allowed_models"] = json.loads(d["allowed_models"])
+        result.append(d)
+    return result
+
+
+@app.put("/config/teams/{team_id}")
+async def update_team_config(team_id: str, payload: dict[str, Any]):
+    allowed_fields = {"budget_usd", "enforcement", "alert_threshold", "rate_limit_tokens", "allowed_models"}
+    updates = {k: v for k, v in payload.items() if k in allowed_fields}
+    if not updates:
+        raise HTTPException(400, "No valid fields to update")
+
+    if "allowed_models" in updates:
+        updates["allowed_models"] = json.dumps(updates["allowed_models"])
+    if "enforcement" in updates and updates["enforcement"] not in ("hard", "soft"):
+        raise HTTPException(400, "enforcement must be 'hard' or 'soft'")
+
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    params = list(updates.values()) + [team_id]
+
+    with get_db() as conn:
+        result = conn.execute(
+            f"UPDATE team_config SET {set_clause} WHERE team_id = ?", params
+        )
+        if result.rowcount == 0:
+            raise HTTPException(404, f"team {team_id!r} not found")
+        conn.commit()
+
+    # Reflect budget changes back into the in-memory dicts used by forecast
+    if "budget_usd" in updates:
+        TEAM_BUDGETS[team_id] = float(payload["budget_usd"])
+
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM team_config WHERE team_id = ?", (team_id,)).fetchone()
+    d = dict(row)
+    d["allowed_models"] = json.loads(d["allowed_models"])
+    return d
+
+
+@app.get("/config/models")
+def get_models():
+    return [
+        {"model_id": mid, "provider": "anthropic" if "claude" in mid else ("openai" if "gpt" in mid else "google"),
+         "input_cost_per_1m": costs[0], "output_cost_per_1m": costs[1]}
+        for mid, costs in MODEL_COSTS.items()
+    ]
 
 
 @app.get("/health")
