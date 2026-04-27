@@ -10,6 +10,17 @@ export async function apiFetch(path, params = {}) {
   return res.json();
 }
 
+export async function apiPost(path, body = {}) {
+  const url = new URL(BASE + path, window.location.origin);
+  const res = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  return res.json();
+}
+
 export async function apiPut(path, body) {
   const url = new URL(BASE + path, window.location.origin);
   const res = await fetch(url.toString(), {

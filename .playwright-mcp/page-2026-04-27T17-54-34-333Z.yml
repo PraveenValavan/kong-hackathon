@@ -1,0 +1,139 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]
+        - text: AIRA
+      - generic [ref=e12]: AI Resource Analytics
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Monitor
+        - generic [ref=e16] [cursor=pointer]:
+          - img [ref=e18]
+          - text: Overview
+      - generic [ref=e24] [cursor=pointer]:
+        - img [ref=e26]
+        - text: Cost & Usage
+      - generic [ref=e29] [cursor=pointer]:
+        - img [ref=e31]
+        - text: Anomalies
+        - generic [ref=e34]: "3"
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e38]
+        - text: AI Forecast
+        - generic [ref=e41]: NEW
+      - generic [ref=e42]:
+        - generic [ref=e43]: Finance
+        - generic [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - text: Chargeback
+      - generic [ref=e49] [cursor=pointer]:
+        - img [ref=e51]
+        - text: Token Logs
+      - generic [ref=e53]:
+        - generic [ref=e54]: Admin
+        - generic [ref=e55] [cursor=pointer]:
+          - img [ref=e57]
+          - text: Governance
+      - generic [ref=e60] [cursor=pointer]:
+        - img [ref=e62]
+        - text: Teams & Budgets
+    - generic [ref=e67]:
+      - generic [ref=e68]: Viewing as
+      - button "Admin ▼" [ref=e70] [cursor=pointer]:
+        - text: Admin
+        - generic [ref=e72]: ▼
+  - main [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]: Overview
+      - generic [ref=e76]: / Apr 2026
+      - generic [ref=e77]:
+        - button "7d" [ref=e78] [cursor=pointer]
+        - button "30d" [ref=e79] [cursor=pointer]
+        - button "90d" [ref=e80] [cursor=pointer]
+        - button "All" [ref=e81] [cursor=pointer]
+      - generic [ref=e82]: R&D over budget
+    - generic [ref=e85]:
+      - generic [ref=e86]: Loading…
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e89]: MTD Spend
+          - generic [ref=e90]: $0.00
+          - generic [ref=e91]: — requests
+        - generic [ref=e93]:
+          - generic [ref=e94]: Budget Remaining
+          - generic [ref=e95]: $6000.00
+          - generic [ref=e96]: remaining
+        - generic [ref=e99]:
+          - generic [ref=e100]: Total Requests
+          - generic [ref=e101]: —
+          - generic [ref=e102]: — users
+        - generic [ref=e105]:
+          - generic [ref=e106]: Total Tokens
+          - generic [ref=e107]: —
+          - generic [ref=e108]: input + output
+      - generic [ref=e112]: Spend over time
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - generic [ref=e117]:
+            - generic [ref=e118]: Daily Cost (USD)
+            - generic [ref=e119]: $0.00
+            - generic [ref=e120]: cumulative this period
+          - img [ref=e121]:
+            - generic [ref=e122]: $250
+            - generic [ref=e123]: $150
+            - generic [ref=e124]: $50
+            - generic [ref=e125]: cap
+          - generic [ref=e126]:
+            - generic [ref=e127]: Total spend
+            - generic [ref=e129]: Budget cap
+        - generic [ref=e131]:
+          - generic [ref=e133]:
+            - generic [ref=e134]: Requests per Model
+            - generic [ref=e135]: —
+          - img [ref=e136]
+        - generic [ref=e137]:
+          - generic [ref=e139]:
+            - generic [ref=e140]: Tokens per Provider
+            - generic [ref=e141]: —
+          - img [ref=e143]:
+            - generic [ref=e145]: "0"
+            - generic [ref=e146]: tokens
+      - generic [ref=e148]: Spend by team
+      - table [ref=e151]:
+        - rowgroup [ref=e152]:
+          - row "Team Department Requests Tokens Spend Budget Utilisation Status" [ref=e153]:
+            - columnheader "Team" [ref=e154]
+            - columnheader "Department" [ref=e155]
+            - columnheader "Requests" [ref=e156]
+            - columnheader "Tokens" [ref=e157]
+            - columnheader "Spend" [ref=e158]
+            - columnheader "Budget" [ref=e159]
+            - columnheader "Utilisation" [ref=e160]
+            - columnheader "Status" [ref=e161]
+        - rowgroup [ref=e162]:
+          - row "No data" [ref=e163]:
+            - cell "No data" [ref=e164]
+      - generic [ref=e165]:
+        - generic [ref=e166]: AI Forecast
+        - generic [ref=e168] [cursor=pointer]: View full forecast →
+      - generic [ref=e170]:
+        - generic [ref=e171]:
+          - generic [ref=e172]: Claude AI Forecast
+          - generic [ref=e173]: claude-sonnet-4-6 · loading…
+        - generic [ref=e174]: Generating forecast…
+      - generic [ref=e175]:
+        - generic [ref=e176]: Recent events
+        - generic [ref=e178] [cursor=pointer]: View token logs →
+      - table [ref=e180]:
+        - rowgroup [ref=e181]:
+          - row "Time User Provider Model In Tokens Out Tokens Cost Status" [ref=e182]:
+            - columnheader "Time" [ref=e183]
+            - columnheader "User" [ref=e184]
+            - columnheader "Provider" [ref=e185]
+            - columnheader "Model" [ref=e186]
+            - columnheader "In Tokens" [ref=e187]
+            - columnheader "Out Tokens" [ref=e188]
+            - columnheader "Cost" [ref=e189]
+            - columnheader "Status" [ref=e190]
+        - rowgroup

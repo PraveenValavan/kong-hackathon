@@ -1,0 +1,205 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]
+        - text: AIRA
+      - generic [ref=e12]: AI Resource Analytics
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Monitor
+        - generic [ref=e16] [cursor=pointer]:
+          - img [ref=e18]
+          - text: Overview
+      - generic [ref=e24] [cursor=pointer]:
+        - img [ref=e26]
+        - text: Cost & Usage
+      - generic [ref=e29] [cursor=pointer]:
+        - img [ref=e31]
+        - text: Anomalies
+        - generic [ref=e34]: "3"
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e38]
+        - text: AI Forecast
+        - generic [ref=e41]: NEW
+      - generic [ref=e42]:
+        - generic [ref=e43]: Finance
+        - generic [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - text: Chargeback
+      - generic [ref=e49] [cursor=pointer]:
+        - img [ref=e51]
+        - text: Token Logs
+      - generic [ref=e53]:
+        - generic [ref=e54]: Admin
+        - generic [ref=e55] [cursor=pointer]:
+          - img [ref=e57]
+          - text: Governance
+      - generic [ref=e60] [cursor=pointer]:
+        - img [ref=e62]
+        - text: Teams & Budgets
+    - generic [ref=e67]:
+      - generic [ref=e68]: Viewing as
+      - button "Admin ▼" [ref=e70] [cursor=pointer]:
+        - text: Admin
+        - generic [ref=e72]: ▼
+  - main [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]: Overview
+      - generic [ref=e76]: / Apr 2026
+      - generic [ref=e77]:
+        - button "7d" [ref=e78] [cursor=pointer]
+        - button "30d" [ref=e79] [cursor=pointer]
+        - button "90d" [ref=e80] [cursor=pointer]
+        - button "All" [ref=e81] [cursor=pointer]
+      - generic [ref=e82]: R&D over budget
+    - generic [ref=e85]:
+      - generic [ref=e86]: Loading…
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e89]: MTD Spend
+          - generic [ref=e90]: $0.00
+          - generic [ref=e91]: — requests
+        - generic [ref=e93]:
+          - generic [ref=e94]: Budget Remaining
+          - generic [ref=e95]: $6000.00
+          - generic [ref=e96]: remaining
+        - generic [ref=e99]:
+          - generic [ref=e100]: Total Requests
+          - generic [ref=e101]: —
+          - generic [ref=e102]: — users
+        - generic [ref=e105]:
+          - generic [ref=e106]: Total Tokens
+          - generic [ref=e107]: —
+          - generic [ref=e108]: input + output
+      - generic [ref=e112]: Spend over time
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - generic [ref=e117]:
+            - generic [ref=e118]: Daily Cost (USD)
+            - generic [ref=e119]: $0.00
+            - generic [ref=e120]: cumulative this period
+          - img [ref=e121]:
+            - generic [ref=e122]: $250
+            - generic [ref=e123]: $150
+            - generic [ref=e124]: $50
+            - generic [ref=e125]: cap
+          - generic [ref=e126]:
+            - generic [ref=e127]: Total spend
+            - generic [ref=e129]: Budget cap
+        - generic [ref=e131]:
+          - generic [ref=e133]:
+            - generic [ref=e134]: Requests per Model
+            - generic [ref=e135]: —
+          - img [ref=e136]
+        - generic [ref=e137]:
+          - generic [ref=e139]:
+            - generic [ref=e140]: Tokens per Provider
+            - generic [ref=e141]: —
+          - img [ref=e143]:
+            - generic [ref=e145]: "0"
+            - generic [ref=e146]: tokens
+      - generic [ref=e148]: Spend by team
+      - table [ref=e151]:
+        - rowgroup [ref=e152]:
+          - row "Team Department Requests Tokens Spend Budget Utilisation Status" [ref=e153]:
+            - columnheader "Team" [ref=e154]
+            - columnheader "Department" [ref=e155]
+            - columnheader "Requests" [ref=e156]
+            - columnheader "Tokens" [ref=e157]
+            - columnheader "Spend" [ref=e158]
+            - columnheader "Budget" [ref=e159]
+            - columnheader "Utilisation" [ref=e160]
+            - columnheader "Status" [ref=e161]
+        - rowgroup [ref=e162]:
+          - row "No data" [ref=e163]:
+            - cell "No data" [ref=e164]
+      - generic [ref=e165]:
+        - generic [ref=e166]: AI Forecast
+        - generic [ref=e168] [cursor=pointer]: View full forecast →
+      - generic [ref=e170]:
+        - generic [ref=e171]:
+          - generic [ref=e172]: Claude AI Forecast
+          - generic [ref=e173]: claude-sonnet-4-6 · loading…
+        - generic [ref=e174]: Generating forecast…
+      - generic [ref=e175]:
+        - generic [ref=e176]: Recent events
+        - generic [ref=e178] [cursor=pointer]: View token logs →
+      - table [ref=e180]:
+        - rowgroup [ref=e181]:
+          - row "Time User Provider Model In Tokens Out Tokens Cost Status" [ref=e182]:
+            - columnheader "Time" [ref=e183]
+            - columnheader "User" [ref=e184]
+            - columnheader "Provider" [ref=e185]
+            - columnheader "Model" [ref=e186]
+            - columnheader "In Tokens" [ref=e187]
+            - columnheader "Out Tokens" [ref=e188]
+            - columnheader "Cost" [ref=e189]
+            - columnheader "Status" [ref=e190]
+        - rowgroup [ref=e191]:
+          - row "12:36:01 engineer-001 anthropic claude-haiku-4-5-20251001 9 235 $0.00 200" [ref=e192]:
+            - cell "12:36:01" [ref=e193]
+            - cell "engineer-001" [ref=e194]
+            - cell "anthropic" [ref=e195]:
+              - generic [ref=e196]: anthropic
+            - cell "claude-haiku-4-5-20251001" [ref=e197]
+            - cell "9" [ref=e198]
+            - cell "235" [ref=e199]
+            - cell "$0.00" [ref=e200]
+            - cell "200" [ref=e201]:
+              - generic [ref=e202]: "200"
+          - row "12:33:16 finops-001 anthropic claude-haiku-4-5-20251001 15 64 $0.00 200" [ref=e203]:
+            - cell "12:33:16" [ref=e204]
+            - cell "finops-001" [ref=e205]
+            - cell "anthropic" [ref=e206]:
+              - generic [ref=e207]: anthropic
+            - cell "claude-haiku-4-5-20251001" [ref=e208]
+            - cell "15" [ref=e209]
+            - cell "64" [ref=e210]
+            - cell "$0.00" [ref=e211]
+            - cell "200" [ref=e212]:
+              - generic [ref=e213]: "200"
+          - row "12:32:12 engineer-001 anthropic claude-sonnet-4-6 13 616 $0.01 200" [ref=e214]:
+            - cell "12:32:12" [ref=e215]
+            - cell "engineer-001" [ref=e216]
+            - cell "anthropic" [ref=e217]:
+              - generic [ref=e218]: anthropic
+            - cell "claude-sonnet-4-6" [ref=e219]
+            - cell "13" [ref=e220]
+            - cell "616" [ref=e221]
+            - cell "$0.01" [ref=e222]
+            - cell "200" [ref=e223]:
+              - generic [ref=e224]: "200"
+          - row "12:08:04 engineer-001 anthropic claude-haiku-4-5-20251001 8 16 $0.00 200" [ref=e225]:
+            - cell "12:08:04" [ref=e226]
+            - cell "engineer-001" [ref=e227]
+            - cell "anthropic" [ref=e228]:
+              - generic [ref=e229]: anthropic
+            - cell "claude-haiku-4-5-20251001" [ref=e230]
+            - cell "8" [ref=e231]
+            - cell "16" [ref=e232]
+            - cell "$0.00" [ref=e233]
+            - cell "200" [ref=e234]:
+              - generic [ref=e235]: "200"
+          - row "12:08:04 engineer-001 anthropic claude-haiku-4-5-20251001 8 24 $0.00 200" [ref=e236]:
+            - cell "12:08:04" [ref=e237]
+            - cell "engineer-001" [ref=e238]
+            - cell "anthropic" [ref=e239]:
+              - generic [ref=e240]: anthropic
+            - cell "claude-haiku-4-5-20251001" [ref=e241]
+            - cell "8" [ref=e242]
+            - cell "24" [ref=e243]
+            - cell "$0.00" [ref=e244]
+            - cell "200" [ref=e245]:
+              - generic [ref=e246]: "200"
+          - row "12:08:02 engineer-001 anthropic claude-sonnet-4-6 8 24 $0.00 200" [ref=e247]:
+            - cell "12:08:02" [ref=e248]
+            - cell "engineer-001" [ref=e249]
+            - cell "anthropic" [ref=e250]:
+              - generic [ref=e251]: anthropic
+            - cell "claude-sonnet-4-6" [ref=e252]
+            - cell "8" [ref=e253]
+            - cell "24" [ref=e254]
+            - cell "$0.00" [ref=e255]
+            - cell "200" [ref=e256]:
+              - generic [ref=e257]: "200"

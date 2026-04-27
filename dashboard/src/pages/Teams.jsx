@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTeamConfigs, useModels } from '../api/hooks';
+import { apiPost } from '../api/client';
 
 const ALL_MODELS = [
   'claude-haiku-4-5-20251001',
@@ -153,6 +154,7 @@ export default function Teams({ currentRole }) {
   const { data: teams, loading, error, save } = useTeamConfigs();
   const [editingId, setEditingId] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [syncState, setSyncState] = useState(null); // null | 'syncing' | {ok, msg}
 
   async function handleSave(teamId, updates) {
     try {
@@ -162,6 +164,17 @@ export default function Teams({ currentRole }) {
     } catch (e) {
       setSaveError(e.message);
     }
+  }
+
+  async function handleSyncKong() {
+    setSyncState('syncing');
+    try {
+      const result = await apiPost('/sync/kong');
+      setSyncState({ ok: true, msg: `Synced ${result.teams_synced} teams · ${result.consumer_plugins} consumer rate-limit rules pushed to Kong` });
+    } catch (e) {
+      setSyncState({ ok: false, msg: e.message });
+    }
+    setTimeout(() => setSyncState(null), 6000);
   }
 
   if (loading) return <div className="page active"><div style={{ color: 'var(--text3)', padding: '2rem' }}>Loading team config…</div></div>;
@@ -180,7 +193,29 @@ export default function Teams({ currentRole }) {
 
       {saveError && <div style={{ color: 'var(--red)', padding: '0.5rem 0 1rem', fontSize: '0.85rem' }}>Save failed: {saveError}</div>}
 
-      <div className="section-header"><span className="section-title">Budget &amp; Model Configuration</span><div className="section-line" /></div>
+      {syncState && syncState !== 'syncing' && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 6, marginBottom: 12, fontSize: '0.82rem',
+          background: syncState.ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+          border: `1px solid ${syncState.ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+          color: syncState.ok ? 'var(--green)' : 'var(--red)',
+        }}>
+          {syncState.ok ? '✓ ' : '✗ '}{syncState.msg}
+        </div>
+      )}
+
+      <div className="section-header">
+        <span className="section-title">Budget &amp; Model Configuration</span>
+        <div className="section-line" />
+        <button
+          className="btn-sync-kong"
+          onClick={handleSyncKong}
+          disabled={syncState === 'syncing' || !!editingId}
+          title="Push rate limits and consumer config to Kong Admin API"
+        >
+          {syncState === 'syncing' ? '⟳ Syncing…' : '⚡ Sync to Kong'}
+        </button>
+      </div>
       <div className="table-card">
         <table>
           <thead>

@@ -1,0 +1,56 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]
+        - text: AIRA
+      - generic [ref=e12]: AI Resource Analytics
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Monitor
+        - generic [ref=e16] [cursor=pointer]:
+          - img [ref=e18]
+          - text: Overview
+      - generic [ref=e24] [cursor=pointer]:
+        - img [ref=e26]
+        - text: Cost & Usage
+      - generic [ref=e29] [cursor=pointer]:
+        - img [ref=e31]
+        - text: Anomalies
+        - generic [ref=e34]: "3"
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e38]
+        - text: AI Forecast
+        - generic [ref=e41]: NEW
+      - generic [ref=e42]:
+        - generic [ref=e43]: Finance
+        - generic [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - text: Chargeback
+      - generic [ref=e49] [cursor=pointer]:
+        - img [ref=e51]
+        - text: Token Logs
+      - generic [ref=e53]:
+        - generic [ref=e54]: Admin
+        - generic [ref=e55] [cursor=pointer]:
+          - img [ref=e57]
+          - text: Governance
+      - generic [ref=e60] [cursor=pointer]:
+        - img [ref=e62]
+        - text: Teams & Budgets
+    - generic [ref=e67]:
+      - generic [ref=e68]: Viewing as
+      - button "Admin ▼" [ref=e70] [cursor=pointer]:
+        - text: Admin
+        - generic [ref=e72]: ▼
+  - main [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]: Teams & Budgets
+      - generic [ref=e76]: / Apr 2026
+      - generic [ref=e77]:
+        - button "7d" [ref=e78] [cursor=pointer]
+        - button "30d" [ref=e79] [cursor=pointer]
+        - button "90d" [ref=e80] [cursor=pointer]
+        - button "All" [ref=e81] [cursor=pointer]
+      - generic [ref=e82]: R&D over budget
+    - generic [ref=e313]: "Error: API 404: /config/teams"

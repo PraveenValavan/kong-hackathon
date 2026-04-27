@@ -819,6 +819,181 @@ def judge_summary(department: Optional[str] = None, since: Optional[str] = None)
     }
 
 
+# ── Kong Sync ─────────────────────────────────────────────────────────────────
+
+_LUA_PRE_FUNCTION = (
+    'local auth = kong.request.get_header("authorization") or ""\n'
+    'local token = auth:match("^[Bb]earer%s+(.+)$")\n'
+    'if token then\n'
+    '  local parts = {}\n'
+    '  for p in token:gmatch("[^%.]+") do parts[#parts+1] = p end\n'
+    '  if parts[2] then\n'
+    '    local b64 = parts[2]:gsub("-", "+"):gsub("_", "/")\n'
+    '    local pad = (4 - #b64 % 4) % 4\n'
+    '    b64 = b64 .. string.rep("=", pad)\n'
+    '    local payload = ngx.decode_base64(b64)\n'
+    '    if payload then\n'
+    '      kong.ctx.shared.aira_user_id    = payload:match(\'"sub"%s*:%s*"([^"]+)"\')\n'
+    '      kong.ctx.shared.aira_team_id    = payload:match(\'"team_id"%s*:%s*"([^"]+)"\')\n'
+    '      kong.ctx.shared.aira_department = payload:match(\'"department"%s*:%s*"([^"]+)"\')\n'
+    '    end\n'
+    '  end\n'
+    'end\n'
+    'kong.ctx.shared.session_id = kong.request.get_header("x-session-id")\n'
+)
+
+_LUA_RETURN = {
+    "user_id":    "return kong.ctx.shared.aira_user_id",
+    "team_id":    "return kong.ctx.shared.aira_team_id",
+    "department": "return kong.ctx.shared.aira_department",
+    "session_id": "return kong.ctx.shared.session_id",
+}
+
+
+def _build_kong_config(teams: list) -> dict:
+    # Consumers must be defined for consumer-scoped plugins to reference them
+    consumers = [
+        {"username": t["consumer_id"], "tags": ["aira"]}
+        for t in teams if t.get("consumer_id")
+    ]
+
+    base_plugins = [
+        {
+            "name": "openid-connect",
+            "config": {
+                "issuer": "http://mock-oauth2:8080/default/.well-known/openid-configuration",
+                "client_id": ["aira-local"],
+                "client_secret": ["aira-secret"],
+                "auth_methods": ["bearer"],
+                "bearer_token_param_type": ["header"],
+                "verify_signature": True,
+                "issuers_allowed": ["http://localhost:8080/default", "http://mock-oauth2:8080/default"],
+                "upstream_headers_claims": ["sub:x-user-id", "team_id:x-team-id", "department:x-department"],
+            },
+        },
+        {
+            "name": "ai-proxy-advanced",
+            "route": "chat-route",
+            "config": {
+                "balancer": {"algorithm": "round-robin"},
+                "targets": [
+                    {
+                        "route_type": "llm/v1/chat", "weight": 100,
+                        "auth": {"header_name": "x-api-key", "header_value": "{vault://env/ANTHROPIC_API_KEY}"},
+                        "model": {"provider": "anthropic", "name": "claude-haiku-4-5-20251001",
+                                  "options": {"max_tokens": 4096, "temperature": 0.7, "anthropic_version": "2023-06-01",
+                                              "input_cost": 0.80, "output_cost": 4.00}},
+                        "logging": {"log_statistics": True, "log_payloads": False},
+                    },
+                    {
+                        "route_type": "llm/v1/chat", "weight": 50,
+                        "auth": {"header_name": "x-api-key", "header_value": "{vault://env/ANTHROPIC_API_KEY}"},
+                        "model": {"provider": "anthropic", "name": "claude-sonnet-4-6",
+                                  "options": {"max_tokens": 4096, "temperature": 0.7, "anthropic_version": "2023-06-01",
+                                              "input_cost": 3.00, "output_cost": 15.00}},
+                        "logging": {"log_statistics": True, "log_payloads": False},
+                    },
+                ],
+            },
+        },
+        # Global route-level rate limit (fallback for any consumer without a specific override)
+        {
+            "name": "ai-rate-limiting-advanced",
+            "route": "chat-route",
+            "config": {
+                "llm_providers": [{"name": "anthropic", "limit": 500000, "window_size": 3600}]
+            },
+        },
+        {
+            "name": "ai-prompt-guard",
+            "route": "chat-route",
+            "config": {
+                "deny_patterns": [
+                    "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+                    "\\b\\d{16}\\b",
+                    "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+",
+                ],
+                "allow_all_conversation_history": True,
+            },
+        },
+        {"name": "pre-function", "config": {"access": [_LUA_PRE_FUNCTION]}},
+        {
+            "name": "file-log",
+            "config": {"path": "/logs/aira-access.log", "reopen": False, "custom_fields_by_lua": _LUA_RETURN},
+        },
+        {
+            "name": "http-log",
+            "config": {
+                "http_endpoint": "http://aira-backend:8002/ingest/event",
+                "method": "POST", "timeout": 5000, "keepalive": 60000,
+                "flush_timeout": 2,
+                # retry_count deprecated in Kong 4.x — use queue config instead
+                "queue": {"max_retry_time": 60},
+                "custom_fields_by_lua": _LUA_RETURN,
+            },
+        },
+    ]
+
+    # Per-consumer rate-limit overrides — these take priority over the route-level plugin
+    consumer_plugins = [
+        {
+            "name": "ai-rate-limiting-advanced",
+            "consumer": t["consumer_id"],
+            "route": "chat-route",
+            "config": {
+                "llm_providers": [{"name": "anthropic", "limit": t["rate_limit_tokens"], "window_size": 3600}]
+            },
+        }
+        for t in teams if t.get("consumer_id")
+    ]
+
+    config: dict = {
+        "_format_version": "3.0",
+        "_transform": True,
+        "services": [{"name": "ai-service", "url": "https://api.anthropic.com", "tags": ["aira"]}],
+        "routes": [{"name": "chat-route", "service": "ai-service", "paths": ["/chat"],
+                    "strip_path": True, "tags": ["aira"]}],
+        "plugins": base_plugins + consumer_plugins,
+    }
+    if consumers:
+        config["consumers"] = consumers
+    return config
+
+
+@app.post("/sync/kong")
+async def sync_kong():
+    import httpx as _httpx
+
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM team_config ORDER BY team_id").fetchall()
+    teams = [dict(r) for r in rows]
+    for t in teams:
+        t["allowed_models"] = json.loads(t["allowed_models"])
+
+    config = _build_kong_config(teams)
+    kong_admin = os.getenv("KONG_ADMIN_URL", "http://kong:8001")
+
+    try:
+        async with _httpx.AsyncClient() as client:
+            # Send as JSON — avoids YAML serialisation issues with Lua strings and vault refs
+            resp = await client.post(
+                f"{kong_admin}/config",
+                json=config,
+                timeout=15.0,
+            )
+        if resp.status_code not in (200, 201):
+            raise HTTPException(502, f"Kong returned {resp.status_code}: {resp.text[:500]}")
+    except _httpx.ConnectError:
+        raise HTTPException(503, "Kong Admin API unreachable — is Kong running?")
+
+    return {
+        "status": "synced",
+        "teams_synced": len(teams),
+        "consumer_plugins": len([t for t in teams if t.get("consumer_id")]),
+        "ts": datetime.datetime.utcnow().isoformat() + "Z",
+    }
+
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 @app.get("/config/teams")

@@ -40,10 +40,10 @@ export default function Sidebar({ currentPage, currentRole, access, onNavigate, 
 
       <nav className="nav">
         {navItems.map(item => {
-          const showSection = item.section && item.section !== lastSection;
-          if (showSection) lastSection = item.section;
           const locked = !access.includes(item.key);
           if (locked) return null;
+          const showSection = item.section && item.section !== lastSection;
+          if (showSection) lastSection = item.section;
           const active = currentPage === item.key;
           return (
             <div key={item.key}>

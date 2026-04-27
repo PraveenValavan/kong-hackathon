@@ -1,0 +1,143 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]
+        - text: AIRA
+      - generic [ref=e12]: AI Resource Analytics
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Monitor
+        - generic [ref=e16] [cursor=pointer]:
+          - img [ref=e18]
+          - text: Overview
+      - generic [ref=e24] [cursor=pointer]:
+        - img [ref=e26]
+        - text: Cost & Usage
+      - generic [ref=e29] [cursor=pointer]:
+        - img [ref=e31]
+        - text: Anomalies
+        - generic [ref=e34]: "3"
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e38]
+        - text: AI Forecast
+        - generic [ref=e41]: NEW
+      - generic [ref=e42]:
+        - generic [ref=e43]: Finance
+        - generic [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - text: Chargeback
+      - generic [ref=e49] [cursor=pointer]:
+        - img [ref=e51]
+        - text: Token Logs
+      - generic [ref=e53]:
+        - generic [ref=e54]: Admin
+        - generic [ref=e55] [cursor=pointer]:
+          - img [ref=e57]
+          - text: Governance
+      - generic [ref=e60] [cursor=pointer]:
+        - img [ref=e62]
+        - text: Teams & Budgets
+    - generic [ref=e67]:
+      - generic [ref=e68]: Viewing as
+      - button "Admin ▼" [ref=e70] [cursor=pointer]:
+        - text: Admin
+        - generic [ref=e72]: ▼
+  - main [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]: Teams & Budgets
+      - generic [ref=e76]: / Apr 2026
+      - generic [ref=e77]:
+        - button "7d" [ref=e78] [cursor=pointer]
+        - button "30d" [ref=e79] [cursor=pointer]
+        - button "90d" [ref=e80] [cursor=pointer]
+        - button "All" [ref=e81] [cursor=pointer]
+      - generic [ref=e82]: R&D over budget
+    - generic [ref=e315]:
+      - generic [ref=e316]:
+        - generic [ref=e317]:
+          - generic [ref=e318]: Teams
+          - generic [ref=e319]: "4"
+          - generic [ref=e320]: Active consumers in Kong
+        - generic [ref=e321]:
+          - generic [ref=e322]: Total Monthly Budget
+          - generic [ref=e323]: $5,800
+          - generic [ref=e324]: Across all teams
+        - generic [ref=e325]:
+          - generic [ref=e326]: Hard Cap Teams
+          - generic [ref=e327]: "1"
+          - generic [ref=e328]: Will receive 429 on overage
+        - generic [ref=e329]:
+          - generic [ref=e330]: Available Models
+          - generic [ref=e331]: "5"
+          - generic [ref=e332]: In model catalog
+      - generic [ref=e334]: Budget & Model Configuration
+      - table [ref=e337]:
+        - rowgroup [ref=e338]:
+          - row "Team Department Monthly Budget Enforcement Alert At Rate Limit Allowed Models" [ref=e339]:
+            - columnheader "Team" [ref=e340]
+            - columnheader "Department" [ref=e341]
+            - columnheader "Monthly Budget" [ref=e342]
+            - columnheader "Enforcement" [ref=e343]
+            - columnheader "Alert At" [ref=e344]
+            - columnheader "Rate Limit" [ref=e345]
+            - columnheader "Allowed Models" [ref=e346]
+            - columnheader [ref=e347]
+        - rowgroup [ref=e348]:
+          - row "data-science R&D $2,500 Soft warn 80% 500k/hr Haiku Sonnet Opus Edit" [ref=e349]:
+            - cell "data-science" [ref=e350]:
+              - strong [ref=e351]: data-science
+            - cell "R&D" [ref=e352]
+            - cell "$2,500" [ref=e353]
+            - cell "Soft warn" [ref=e354]:
+              - generic [ref=e355]: Soft warn
+            - cell "80%" [ref=e356]
+            - cell "500k/hr" [ref=e357]
+            - cell "Haiku Sonnet Opus" [ref=e358]:
+              - generic [ref=e359]:
+                - generic [ref=e360]: Haiku
+                - generic [ref=e361]: Sonnet
+                - generic [ref=e362]: Opus
+            - cell "Edit" [ref=e363]:
+              - button "Edit" [ref=e364] [cursor=pointer]
+          - row "finance Finance $500 Soft warn 80% 500k/hr Haiku Edit" [ref=e365]:
+            - cell "finance" [ref=e366]:
+              - strong [ref=e367]: finance
+            - cell "Finance" [ref=e368]
+            - cell "$500" [ref=e369]
+            - cell "Soft warn" [ref=e370]:
+              - generic [ref=e371]: Soft warn
+            - cell "80%" [ref=e372]
+            - cell "500k/hr" [ref=e373]
+            - cell "Haiku" [ref=e374]:
+              - generic [ref=e376]: Haiku
+            - cell "Edit" [ref=e377]:
+              - button "Edit" [ref=e378] [cursor=pointer]
+          - row "nlp-platform R&D $1,800 Hard cap (429) 80% 500k/hr Haiku Sonnet Edit" [ref=e379]:
+            - cell "nlp-platform" [ref=e380]:
+              - strong [ref=e381]: nlp-platform
+            - cell "R&D" [ref=e382]
+            - cell "$1,800" [ref=e383]
+            - cell "Hard cap (429)" [ref=e384]:
+              - generic [ref=e385]: Hard cap (429)
+            - cell "80%" [ref=e386]
+            - cell "500k/hr" [ref=e387]
+            - cell "Haiku Sonnet" [ref=e388]:
+              - generic [ref=e389]:
+                - generic [ref=e390]: Haiku
+                - generic [ref=e391]: Sonnet
+            - cell "Edit" [ref=e392]:
+              - button "Edit" [ref=e393] [cursor=pointer]
+          - row "platform Engineering $1,000 Soft warn 90% 500k/hr Haiku Edit" [ref=e394]:
+            - cell "platform" [ref=e395]:
+              - strong [ref=e396]: platform
+            - cell "Engineering" [ref=e397]
+            - cell "$1,000" [ref=e398]
+            - cell "Soft warn" [ref=e399]:
+              - generic [ref=e400]: Soft warn
+            - cell "90%" [ref=e401]
+            - cell "500k/hr" [ref=e402]
+            - cell "Haiku" [ref=e403]:
+              - generic [ref=e405]: Haiku
+            - cell "Edit" [ref=e406]:
+              - button "Edit" [ref=e407] [cursor=pointer]

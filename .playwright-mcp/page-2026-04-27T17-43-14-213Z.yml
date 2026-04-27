@@ -1,0 +1,248 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]
+        - text: AIRA
+      - generic [ref=e12]: AI Resource Analytics
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Monitor
+        - generic [ref=e16] [cursor=pointer]:
+          - img [ref=e18]
+          - text: Overview
+      - generic [ref=e24] [cursor=pointer]:
+        - img [ref=e26]
+        - text: Cost & Usage
+      - generic [ref=e29] [cursor=pointer]:
+        - img [ref=e31]
+        - text: Anomalies
+        - generic [ref=e34]: "3"
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e38]
+        - text: AI Forecast
+        - generic [ref=e41]: NEW
+      - generic [ref=e42]:
+        - generic [ref=e43]: Finance
+        - generic [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - text: Chargeback
+      - generic [ref=e49] [cursor=pointer]:
+        - img [ref=e51]
+        - text: Token Logs
+      - generic [ref=e53]:
+        - generic [ref=e54]: Admin
+        - generic [ref=e55] [cursor=pointer]:
+          - img [ref=e57]
+          - text: Governance
+      - generic [ref=e60] [cursor=pointer]:
+        - img [ref=e62]
+        - text: Teams & Budgets
+    - generic [ref=e67]:
+      - generic [ref=e68]: Viewing as
+      - button "Admin ▼" [ref=e70] [cursor=pointer]:
+        - text: Admin
+        - generic [ref=e72]: ▼
+  - main [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]: Governance
+      - generic [ref=e76]: / Apr 2026
+      - generic [ref=e77]:
+        - button "7d" [ref=e78] [cursor=pointer]
+        - button "30d" [ref=e79] [cursor=pointer]
+        - button "90d" [ref=e80] [cursor=pointer]
+        - button "All" [ref=e81] [cursor=pointer]
+      - generic [ref=e82]: R&D over budget
+    - generic [ref=e408]:
+      - generic [ref=e409]:
+        - generic [ref=e410]:
+          - generic [ref=e411]: Active Consumers
+          - generic [ref=e412]: "4"
+          - generic [ref=e413]: Teams in Kong
+        - generic [ref=e414]:
+          - generic [ref=e415]: Rate Limit Policy
+          - generic [ref=e416]: Token-based
+          - generic [ref=e417]: Per-consumer, per route
+        - generic [ref=e418]:
+          - generic [ref=e419]: PII Guard Rules
+          - generic [ref=e420]: "3"
+          - generic [ref=e421]: SSN, card, credential
+        - generic [ref=e422]:
+          - generic [ref=e423]: OIDC Provider
+          - generic [ref=e424]: Mock
+          - generic [ref=e425]: mock-oauth2:8080
+      - generic [ref=e427]: Model Availability by Team
+      - table [ref=e430]:
+        - rowgroup [ref=e431]:
+          - row "Team Dept Haiku Sonnet Opus GPT-4o Gemini Flash Rate Limit / hr" [ref=e432]:
+            - columnheader "Team" [ref=e433]
+            - columnheader "Dept" [ref=e434]
+            - columnheader "Haiku" [ref=e435]
+            - columnheader "Sonnet" [ref=e436]
+            - columnheader "Opus" [ref=e437]
+            - columnheader "GPT-4o" [ref=e438]
+            - columnheader "Gemini Flash" [ref=e439]
+            - columnheader "Rate Limit / hr" [ref=e440]
+        - rowgroup [ref=e441]:
+          - row "data-science R&D ✓ ✓ ✓ — — 500k tokens" [ref=e442]:
+            - cell "data-science" [ref=e443]:
+              - strong [ref=e444]: data-science
+            - cell "R&D" [ref=e445]
+            - cell "✓" [ref=e446]
+            - cell "✓" [ref=e447]
+            - cell "✓" [ref=e448]
+            - cell "—" [ref=e449]
+            - cell "—" [ref=e450]
+            - cell "500k tokens" [ref=e451]
+          - row "finance Finance ✓ — — — — 500k tokens" [ref=e452]:
+            - cell "finance" [ref=e453]:
+              - strong [ref=e454]: finance
+            - cell "Finance" [ref=e455]
+            - cell "✓" [ref=e456]
+            - cell "—" [ref=e457]
+            - cell "—" [ref=e458]
+            - cell "—" [ref=e459]
+            - cell "—" [ref=e460]
+            - cell "500k tokens" [ref=e461]
+          - row "nlp-platform R&D ✓ ✓ — — — 500k tokens" [ref=e462]:
+            - cell "nlp-platform" [ref=e463]:
+              - strong [ref=e464]: nlp-platform
+            - cell "R&D" [ref=e465]
+            - cell "✓" [ref=e466]
+            - cell "✓" [ref=e467]
+            - cell "—" [ref=e468]
+            - cell "—" [ref=e469]
+            - cell "—" [ref=e470]
+            - cell "500k tokens" [ref=e471]
+          - row "platform Engineering ✓ — — — — 500k tokens" [ref=e472]:
+            - cell "platform" [ref=e473]:
+              - strong [ref=e474]: platform
+            - cell "Engineering" [ref=e475]
+            - cell "✓" [ref=e476]
+            - cell "—" [ref=e477]
+            - cell "—" [ref=e478]
+            - cell "—" [ref=e479]
+            - cell "—" [ref=e480]
+            - cell "500k tokens" [ref=e481]
+      - generic [ref=e483]: Model Catalog & Pricing
+      - table [ref=e486]:
+        - rowgroup [ref=e487]:
+          - row "Model Provider Input (per 1M tokens) Output (per 1M tokens)" [ref=e488]:
+            - columnheader "Model" [ref=e489]
+            - columnheader "Provider" [ref=e490]
+            - columnheader "Input (per 1M tokens)" [ref=e491]
+            - columnheader "Output (per 1M tokens)" [ref=e492]
+        - rowgroup [ref=e493]:
+          - row "claude-haiku-4-5-20251001 anthropic $0.800 $4.00" [ref=e494]:
+            - cell "claude-haiku-4-5-20251001" [ref=e495]:
+              - strong [ref=e496]: claude-haiku-4-5-20251001
+            - cell "anthropic" [ref=e497]
+            - cell "$0.800" [ref=e498]
+            - cell "$4.00" [ref=e499]
+          - row "claude-sonnet-4-6 anthropic $3.000 $15.00" [ref=e500]:
+            - cell "claude-sonnet-4-6" [ref=e501]:
+              - strong [ref=e502]: claude-sonnet-4-6
+            - cell "anthropic" [ref=e503]
+            - cell "$3.000" [ref=e504]
+            - cell "$15.00" [ref=e505]
+          - row "claude-opus-4-7 anthropic $15.000 $75.00" [ref=e506]:
+            - cell "claude-opus-4-7" [ref=e507]:
+              - strong [ref=e508]: claude-opus-4-7
+            - cell "anthropic" [ref=e509]
+            - cell "$15.000" [ref=e510]
+            - cell "$75.00" [ref=e511]
+          - row "gpt-4o openai $2.500 $10.00" [ref=e512]:
+            - cell "gpt-4o" [ref=e513]:
+              - strong [ref=e514]: gpt-4o
+            - cell "openai" [ref=e515]
+            - cell "$2.500" [ref=e516]
+            - cell "$10.00" [ref=e517]
+          - row "gemini-2.5-flash google $0.075 $0.30" [ref=e518]:
+            - cell "gemini-2.5-flash" [ref=e519]:
+              - strong [ref=e520]: gemini-2.5-flash
+            - cell "google" [ref=e521]
+            - cell "$0.075" [ref=e522]
+            - cell "$0.30" [ref=e523]
+      - generic [ref=e525]: Kong Gateway Policies
+      - generic [ref=e527]:
+        - generic [ref=e528]:
+          - generic [ref=e529]: Load Balancer
+          - generic [ref=e530]: Round-robin
+          - generic [ref=e531]: Haiku ×2, Sonnet ×1 weight
+        - generic [ref=e532]:
+          - generic [ref=e533]: Rate Limit Window
+          - generic [ref=e534]: 1 hr
+          - generic [ref=e535]: Token bucket per consumer
+        - generic [ref=e536]:
+          - generic [ref=e537]: Auth Method
+          - generic [ref=e538]: OIDC
+          - generic [ref=e539]: Bearer token via JWKS
+      - table [ref=e541]:
+        - rowgroup [ref=e542]:
+          - row "PII Rule Pattern Action" [ref=e543]:
+            - columnheader "PII Rule" [ref=e544]
+            - columnheader "Pattern" [ref=e545]
+            - columnheader "Action" [ref=e546]
+        - rowgroup [ref=e547]:
+          - 'row "SSN \\b\\d{3}-\\d{2}-\\d{4}\\b Block (400)" [ref=e548]':
+            - cell "SSN" [ref=e549]:
+              - strong [ref=e550]: SSN
+            - 'cell "\\b\\d{3}-\\d{2}-\\d{4}\\b" [ref=e551]'
+            - cell "Block (400)" [ref=e552]:
+              - generic [ref=e553]: Block (400)
+          - 'row "Credit Card \\b\\d{16}\\b Block (400)" [ref=e554]':
+            - cell "Credit Card" [ref=e555]:
+              - strong [ref=e556]: Credit Card
+            - 'cell "\\b\\d{16}\\b" [ref=e557]'
+            - cell "Block (400)" [ref=e558]:
+              - generic [ref=e559]: Block (400)
+          - row "Credentials (?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+ Block (400)" [ref=e560]:
+            - cell "Credentials" [ref=e561]:
+              - strong [ref=e562]: Credentials
+            - cell "(?i)(password|secret|api[_-]?key)\\s*[:=]\\s*\\S+" [ref=e563]
+            - cell "Block (400)" [ref=e564]:
+              - generic [ref=e565]: Block (400)
+      - generic [ref=e567]: RBAC Matrix
+      - table [ref=e570]:
+        - rowgroup [ref=e571]:
+          - row "Permission FinOps Engineering Admin" [ref=e572]:
+            - columnheader "Permission" [ref=e573]
+            - columnheader "FinOps" [ref=e574]
+            - columnheader "Engineering" [ref=e575]
+            - columnheader "Admin" [ref=e576]
+        - rowgroup [ref=e577]:
+          - row "View Overview ✓ ✓ ✓" [ref=e578]:
+            - cell "View Overview" [ref=e579]
+            - cell "✓" [ref=e580]
+            - cell "✓" [ref=e581]
+            - cell "✓" [ref=e582]
+          - row "View Chargeback ✓ — ✓" [ref=e583]:
+            - cell "View Chargeback" [ref=e584]
+            - cell "✓" [ref=e585]
+            - cell "—" [ref=e586]
+            - cell "✓" [ref=e587]
+          - row "Export Reports ✓ — ✓" [ref=e588]:
+            - cell "Export Reports" [ref=e589]
+            - cell "✓" [ref=e590]
+            - cell "—" [ref=e591]
+            - cell "✓" [ref=e592]
+          - row "View Token Logs — ✓ ✓" [ref=e593]:
+            - cell "View Token Logs" [ref=e594]
+            - cell "—" [ref=e595]
+            - cell "✓" [ref=e596]
+            - cell "✓" [ref=e597]
+          - row "View Anomalies — ✓ ✓" [ref=e598]:
+            - cell "View Anomalies" [ref=e599]
+            - cell "—" [ref=e600]
+            - cell "✓" [ref=e601]
+            - cell "✓" [ref=e602]
+          - row "Manage Budgets — — ✓" [ref=e603]:
+            - cell "Manage Budgets" [ref=e604]
+            - cell "—" [ref=e605]
+            - cell "—" [ref=e606]
+            - cell "✓" [ref=e607]
+          - row "Configure RBAC — — ✓" [ref=e608]:
+            - cell "Configure RBAC" [ref=e609]
+            - cell "—" [ref=e610]
+            - cell "—" [ref=e611]
+            - cell "✓" [ref=e612]
