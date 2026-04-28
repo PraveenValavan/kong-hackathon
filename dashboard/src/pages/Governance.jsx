@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTeamConfigs, useModels } from '../api/hooks';
 
 const RBAC = [
@@ -33,6 +34,12 @@ function modelShortName(id) {
 }
 
 export default function Governance({ currentRole }) {
+  const { data: teams, loading: teamsLoading, save: saveTeam } = useTeamConfigs();
+  const { data: models, loading: modelsLoading } = useModels();
+
+  const [editRow, setEditRow] = useState(null);
+  const [saving, setSaving] = useState(false);
+
   if (currentRole !== 'admin') {
     return (
       <div className="page active">
@@ -41,10 +48,33 @@ export default function Governance({ currentRole }) {
     );
   }
 
-  const { data: teams, loading: teamsLoading } = useTeamConfigs();
-  const { data: models, loading: modelsLoading } = useModels();
-
   const allModelIds = models ? models.map(m => m.model_id) : [];
+
+  function startEdit(t) {
+    setEditRow({ team_id: t.team_id, allowed_models: [...t.allowed_models], rate_limit_tokens: t.rate_limit_tokens });
+  }
+
+  function toggleModel(mid) {
+    setEditRow(prev => ({
+      ...prev,
+      allowed_models: prev.allowed_models.includes(mid)
+        ? prev.allowed_models.filter(m => m !== mid)
+        : [...prev.allowed_models, mid],
+    }));
+  }
+
+  async function commitEdit() {
+    setSaving(true);
+    try {
+      await saveTeam(editRow.team_id, {
+        allowed_models: editRow.allowed_models,
+        rate_limit_tokens: Number(editRow.rate_limit_tokens),
+      });
+      setEditRow(null);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="page active">
@@ -68,21 +98,75 @@ export default function Governance({ currentRole }) {
                 <th>Dept</th>
                 {allModelIds.map(mid => <th key={mid}>{modelShortName(mid)}</th>)}
                 <th>Rate Limit / hr</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {teams.map(t => (
-                <tr key={t.team_id}>
-                  <td><strong>{t.team_id}</strong></td>
-                  <td style={{ color: 'var(--text3)' }}>{t.department}</td>
-                  {allModelIds.map(mid => (
-                    <td key={mid} style={{ textAlign: 'center', color: t.allowed_models.includes(mid) ? 'var(--green)' : 'var(--text3)' }}>
-                      {t.allowed_models.includes(mid) ? '✓' : '—'}
+              {teams.map(t => {
+                const isEditing = editRow?.team_id === t.team_id;
+                return (
+                  <tr key={t.team_id}>
+                    <td><strong>{t.team_id}</strong></td>
+                    <td style={{ color: 'var(--text3)' }}>{t.department}</td>
+                    {allModelIds.map(mid => (
+                      <td key={mid} style={{ textAlign: 'center' }}>
+                        {isEditing ? (
+                          <input
+                            type="checkbox"
+                            checked={editRow.allowed_models.includes(mid)}
+                            onChange={() => toggleModel(mid)}
+                            style={{ accentColor: 'var(--green)', cursor: 'pointer' }}
+                          />
+                        ) : (
+                          <span style={{ color: t.allowed_models.includes(mid) ? 'var(--green)' : 'var(--text3)' }}>
+                            {t.allowed_models.includes(mid) ? '✓' : '—'}
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                    <td>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          value={editRow.rate_limit_tokens}
+                          onChange={e => setEditRow(prev => ({ ...prev, rate_limit_tokens: e.target.value }))}
+                          style={{ width: '80px', background: 'var(--bg2)', color: 'var(--amber)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 6px' }}
+                        />
+                      ) : (
+                        <span style={{ color: 'var(--amber)' }}>{(t.rate_limit_tokens / 1000).toFixed(0)}k tokens</span>
+                      )}
                     </td>
-                  ))}
-                  <td style={{ color: 'var(--amber)' }}>{(t.rate_limit_tokens / 1000).toFixed(0)}k tokens</td>
-                </tr>
-              ))}
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={commitEdit}
+                            disabled={saving}
+                            style={{ marginRight: '6px', padding: '2px 10px', background: 'var(--green)', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.78rem' }}
+                          >
+                            {saving ? '…' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => setEditRow(null)}
+                            disabled={saving}
+                            style={{ padding: '2px 10px', background: 'var(--bg3)', color: 'var(--text2)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.78rem' }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => startEdit(t)}
+                          disabled={editRow !== null}
+                          style={{ padding: '2px 10px', background: 'var(--bg3)', color: 'var(--text2)', border: 'none', borderRadius: '4px', cursor: editRow ? 'default' : 'pointer', fontSize: '0.78rem', opacity: editRow && !isEditing ? 0.4 : 1 }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
