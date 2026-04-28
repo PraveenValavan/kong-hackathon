@@ -35,7 +35,11 @@
       "Bash(kill 91415)",
       "Bash(rm -rf /Users/praveenkumarvalavan/Documents/Work/kong-hackathon/kong/kong-hackathon/dashboard/node_modules/.vite)",
       "Bash(curl -s \"http://localhost:5173/src/pages/Terminal.jsx\")",
-      "Bash(\"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --install-extension aira-terminal-0.1.0.vsix --force)"
+      "Bash(\"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --install-extension aira-terminal-0.1.0.vsix --force)",
+      "Bash(vsce --version)",
+      "Bash(vsce package *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8002/health)",
+      "Bash(curl -s -X POST http://localhost:8002/chat -H 'Content-Type: application/json' -H 'Origin: vscode-webview://test' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":10}' -w '\\\\n\\\\nHTTP %{http_code}')"
     ]
   }
 }

@@ -33,6 +33,31 @@ function fetchJson(url) {
   });
 }
 
+/** @param {string} url @param {object} body @returns {Promise<any>} */
+function postJson(url, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const opts = new URL(url);
+    const req = http.request({
+      hostname: opts.hostname,
+      port: opts.port,
+      path: opts.pathname,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+    }, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(raw)); }
+        catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
 async function loadData(userId) {
   try {
     const today = new Date().toISOString().slice(0, 10);
@@ -722,9 +747,18 @@ class AiraTerminalPanel {
     this._extensionUri = extensionUri;
     this._panel.webview.html = this._getHtml(this._panel.webview);
     this._panel.onDidDispose(() => { AiraTerminalPanel.currentPanel = null; });
-    this._panel.webview.onDidReceiveMessage(msg => {
+    this._panel.webview.onDidReceiveMessage(async (/** @type {any} */ msg) => {
       if (msg.command === 'switchModel') {
         vscode.window.showInformationMessage(`AIRA: Model set to ${msg.model}`);
+      }
+      if (msg.command === 'chat') {
+        try {
+          const result = await postJson('http://localhost:8002/chat', msg.payload);
+          this._panel.webview.postMessage({ type: 'chatResult', id: msg.id, data: result });
+        } catch (e) {
+          const err = /** @type {Error} */ (e);
+          this._panel.webview.postMessage({ type: 'chatError', id: msg.id, error: err.message });
+        }
       }
     });
   }
@@ -855,7 +889,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
               <span class="input-prompt-model" id="input-model-label">claude-sonnet-4-6</span>
               ›
             </div>
-            <input class="input-field" id="user-input" type="text" placeholder="Type your prompt here…" oninput="updateInputCost(this.value)" />
+            <input class="input-field" id="user-input" type="text" placeholder="Type your prompt here…" />
             <span class="input-cost" id="input-cost-hint">~0 tokens</span>
           </div>
         </div>
@@ -970,6 +1004,7 @@ const state = {
   requests:0, sessionCost:0, currentModel:'claude-sonnet-4-6',
   startTime:Date.now(), bearerToken:null, connStatus:'connecting',
   sending:false,
+  conversationHistory: [],
 };
 
 function fmt(n) { return Math.round(n).toLocaleString(); }
@@ -1094,11 +1129,14 @@ function switchModel(key) {
 }
 
 function updateInputCost(val) {
-  const est = Math.ceil(val.length / 4);
+  const newTok = Math.ceil(val.length / 4);
+  const ctxTok = state.conversationHistory.reduce((s, m) => s + Math.ceil(m.content.length / 4), 0);
+  const totalTok = newTok + ctxTok;
   const model = MODELS[state.currentModel] ?? MODELS['claude-sonnet-4-6'];
-  const cost = est * model.inRate / 1000000;
-  EL.inputCostHint.textContent = \`~\${est} tokens · ~$\${cost.toFixed(6)}\`;
-  EL.inputCostHint.style.color = est > 500 ? 'var(--orange)' : 'var(--text3)';
+  const cost = totalTok * model.inRate / 1000000;
+  const ctxNote = ctxTok > 0 ? \` (+\${fmt(ctxTok)} ctx)\` : '';
+  EL.inputCostHint.textContent = \`~\${fmt(newTok)} tokens\${ctxNote} · ~$\${cost.toFixed(6)}\`;
+  EL.inputCostHint.style.color = totalTok > 500 ? 'var(--orange)' : 'var(--text3)';
 }
 
 async function bootstrap() {
@@ -1158,18 +1196,28 @@ async function pollBackend() {
   } catch { /* backend may not be running */ }
 }
 
-async function sendPrompt() {
+const pendingChat = new Map();
+
+function sendPrompt() {
   const input = document.getElementById('user-input');
   const text = input.value.trim();
   if (!text || state.sending) return;
-  const estimatedInputTokens = Math.ceil(text.length / 4);
+
+  const ctxTok = state.conversationHistory.reduce((s, m) => s + Math.ceil(m.content.length / 4), 0);
+  const newTok = Math.ceil(text.length / 4);
+  const estimatedInputTokens = ctxTok + newTok;
+
   input.value = '';
   state.sending = true;
   updateInputCost('');
 
   appendLine('$', 'sys', text, 'user');
+  if (ctxTok > 0) {
+    appendLine('INFO', 'info', \`context: \${fmt(ctxTok)} tokens (\${state.conversationHistory.length} msgs) · new: \${fmt(newTok)} tokens · total input: ~\${fmt(estimatedInputTokens)}\`, 'muted');
+  }
 
   const thinkId = 'think-' + Date.now();
+  const msgId   = thinkId;
   const out = EL.terminalOutput;
   const thinkEl = document.createElement('div');
   thinkEl.id = thinkId;
@@ -1178,32 +1226,21 @@ async function sendPrompt() {
   out.appendChild(thinkEl);
   out.scrollTop = out.scrollHeight;
 
-  try {
-    const res = await fetch(BACKEND + '/chat', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        messages:[{role:'user',content:text}],
-        model: state.currentModel,
-        max_tokens:1024,
-      }),
-    });
+  const messages = [...state.conversationHistory, { role: 'user', content: text }];
+
+  pendingChat.set(msgId, (data, err) => {
     document.getElementById(thinkId)?.remove();
 
-    if (res.status === 429) { appendLine('WARN','warn','Rate limit exceeded — token limit reached','danger'); state.sending=false; return; }
-    if (res.status === 400) {
-      const err = await res.json().catch(()=>({}));
-      const msg = err.message ?? err.error?.message ?? 'policy violation';
-      const isPii = msg.toLowerCase().includes('pii') || msg.toLowerCase().includes('guard') || msg.toLowerCase().includes('blocked') || msg.toLowerCase().includes('deny');
-      appendLine('WARN','warn', isPii ? 'PII Guard blocked: '+msg : 'Kong error 400: '+msg,'danger');
-      state.sending=false; return;
+    if (err) {
+      appendLine('WARN','warn', 'Backend unreachable — ' + err, 'danger');
+      state.sending = false;
+      input.focus();
+      return;
     }
-    if (!res.ok) { appendLine('WARN','warn','Kong error '+res.status+' — '+res.statusText,'danger'); state.sending=false; return; }
 
-    const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content ?? data?.content?.[0]?.text ?? JSON.stringify(data);
     const promptTok = data?.usage?.input_tokens ?? data?.usage?.prompt_tokens ?? 0;
-    const compTok = data?.usage?.output_tokens ?? data?.usage?.completion_tokens ?? 0;
+    const compTok   = data?.usage?.output_tokens ?? data?.usage?.completion_tokens ?? 0;
 
     appendLine('OK', 'ok', reply, 'assistant');
 
@@ -1216,19 +1253,39 @@ async function sendPrompt() {
     state.tokensUsed        += actualPrompt + actualComp;
     state.sessionCost       += cost;
     state.requests++;
-    appendLine('INFO','info',\`tokens: \${fmt(actualPrompt + actualComp)} (prompt \${fmt(actualPrompt)} + completion \${fmt(actualComp)}) · cost: $\${cost.toFixed(5)}\`,'muted');
+
+    state.conversationHistory.push({ role: 'user', content: text });
+    state.conversationHistory.push({ role: 'assistant', content: reply });
+
+    const ctxNote = ctxTok > 0 ? \` (incl. \${fmt(ctxTok)} ctx)\` : '';
+    appendLine('INFO','info',\`tokens: \${fmt(actualPrompt+actualComp)} (prompt \${fmt(actualPrompt)}\${ctxNote} + completion \${fmt(actualComp)}) · cost: $\${cost.toFixed(5)}\`,'muted');
     updateMeter();
     updateSession();
     setTimeout(pollBackend, 3000);
-  } catch {
-    document.getElementById(thinkId)?.remove();
-    appendLine('INFO','info','Kong gateway unreachable — check that the stack is running','muted');
-  }
-  state.sending = false;
-  input.focus();
+    state.sending = false;
+    input.focus();
+  });
+
+  vscode.postMessage({ command:'chat', id: msgId, payload:{
+    messages,
+    model: state.currentModel,
+    max_tokens:1024,
+  }});
 }
 
-document.getElementById('user-input').addEventListener('keydown', e => {
+window.addEventListener('message', ({ data: msg }) => {
+  if (msg.type === 'chatResult' || msg.type === 'chatError') {
+    const cb = pendingChat.get(msg.id);
+    if (cb) {
+      pendingChat.delete(msg.id);
+      cb(msg.data ?? null, msg.error ?? null);
+    }
+  }
+});
+
+const userInput = document.getElementById('user-input');
+userInput.addEventListener('input', e => updateInputCost(e.target.value));
+userInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrompt(); }
 });
 
