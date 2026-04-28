@@ -48,7 +48,10 @@
       "Bash(echo \"Exit code: $?\")",
       "Bash(bash scripts/aira-chat.sh \"my password is hunter2\")",
       "Bash(bash scripts/aira-chat.sh \"What is 2+2?\" --model claude-haiku-4-5-20251001)",
-      "Bash(bash scripts/aira-chat.sh \"What is 2+2?\" --model claude-sonnet-4-6)"
+      "Bash(bash scripts/aira-chat.sh \"What is 2+2?\" --model claude-sonnet-4-6)",
+      "Bash(chmod +x /Users/praveenkumarvalavan/Documents/Work/kong-hackathon/kong/kong-hackathon/scripts/aira-test.sh)",
+      "Bash(bash scripts/aira-test.sh --no-llm)",
+      "Bash(bash scripts/aira-test.sh --no-llm --verbose)"
     ]
   }
 }

@@ -42,6 +42,9 @@ done
 PASS=0
 FAIL=0
 SKIP=0
+HTTP_CODE=""
+_CODE_FILE=$(mktemp)
+trap 'rm -f "$_CODE_FILE"' EXIT
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -53,17 +56,19 @@ RESET='\033[0m'
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-pass() { echo -e "  ${GREEN}✓${RESET} $1"; ((PASS++)); }
-fail() { echo -e "  ${RED}✗${RESET} $1"; ((FAIL++)); [[ $VERBOSE -eq 1 ]] && [[ -n "${2:-}" ]] && echo "    $2"; }
-skip() { echo -e "  ${YELLOW}⊘${RESET} $1 (skipped: --no-llm)"; ((SKIP++)); }
+pass() { echo -e "  ${GREEN}✓${RESET} $1"; PASS=$((PASS + 1)); }
+fail() { echo -e "  ${RED}✗${RESET} $1"; FAIL=$((FAIL + 1)); [[ $VERBOSE -eq 1 ]] && [[ -n "${2:-}" ]] && echo "    $2"; }
+skip() { echo -e "  ${YELLOW}⊘${RESET} $1 (skipped: --no-llm)"; SKIP=$((SKIP + 1)); }
 section() { echo -e "\n${BOLD}${CYAN}── $1 ─────────────────────────────────────────────${RESET}"; }
 
-# Make an HTTP request, return body to stdout, capture status code in HTTP_CODE.
-# Usage: body=$(req GET http://... [extra curl args])
+# Make an HTTP request, return body to stdout, persist status code in $_CODE_FILE.
+# After calling: body=$(req GET url ...); HTTP_CODE=$(cat "$_CODE_FILE")
 req() {
   local method="$1"; local url="$2"; shift 2
   local tmp; tmp=$(mktemp)
-  HTTP_CODE=$(curl -s -o "$tmp" -w "%{http_code}" -X "$method" "$url" "$@" --max-time 15 2>/dev/null || echo "000")
+  local code
+  code=$(curl -s -o "$tmp" -w "%{http_code}" -X "$method" "$url" "$@" --max-time 15 2>/dev/null || echo "000")
+  echo "$code" > "$_CODE_FILE"
   cat "$tmp"
   rm -f "$tmp"
 }
@@ -77,8 +82,12 @@ get_token() {
     --max-time 10 2>/dev/null | jq -r .access_token 2>/dev/null || echo ""
 }
 
-# Assert HTTP status code matches expected.
+# Read the HTTP code written by the last req() call into $HTTP_CODE.
+load_code() { HTTP_CODE=$(cat "$_CODE_FILE" 2>/dev/null || echo "000"); }
+
+# Assert HTTP status code matches expected (reads $_CODE_FILE automatically).
 assert_status() {
+  load_code
   local label="$1" expected="$2"
   if [[ "$HTTP_CODE" == "$expected" ]]; then
     pass "$label (HTTP $HTTP_CODE)"
@@ -115,7 +124,7 @@ body=$(req GET "${BACKEND}/health")
 assert_status "AIRA backend /health" "200"
 assert_contains "backend health status=ok" '"ok"' "$body"
 
-body=$(req GET "${KONG_ADMIN}/status")
+body=$(req GET "${KONG_ADMIN}/status"); load_code
 if [[ "$HTTP_CODE" == "200" ]]; then
   pass "Kong Admin API reachable (HTTP 200)"
 else
@@ -145,7 +154,7 @@ done
 # Request without a token should be rejected by OIDC plugin
 body=$(req POST "${KONG_PROXY}/chat" \
   -H "Content-Type: application/json" \
-  -d '{"max_tokens":10,"messages":[{"role":"user","content":"hi"}]}')
+  -d '{"max_tokens":10,"messages":[{"role":"user","content":"hi"}]}'); load_code
 if [[ "$HTTP_CODE" == "401" ]]; then
   pass "Unauthenticated request rejected (HTTP 401)"
 else
@@ -156,7 +165,7 @@ fi
 body=$(req POST "${KONG_PROXY}/chat" \
   -H "Authorization: Bearer this.is.garbage" \
   -H "Content-Type: application/json" \
-  -d '{"max_tokens":10,"messages":[{"role":"user","content":"hi"}]}')
+  -d '{"max_tokens":10,"messages":[{"role":"user","content":"hi"}]}'); load_code
 if [[ "$HTTP_CODE" == "401" ]]; then
   pass "Invalid JWT rejected (HTTP 401)"
 else
@@ -224,7 +233,7 @@ section "4 · PII / content guard (ai-prompt-guard)"
 body=$(req POST "${KONG_PROXY}/chat" \
   -H "Authorization: Bearer ${ENG_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"max_tokens":50,"messages":[{"role":"user","content":"My SSN is 123-45-6789, please help"}]}')
+  -d '{"max_tokens":50,"messages":[{"role":"user","content":"My SSN is 123-45-6789, please help"}]}'); load_code
 if [[ "$HTTP_CODE" == "400" ]]; then
   pass "SSN pattern blocked (HTTP 400)"
 else
@@ -235,7 +244,7 @@ fi
 body=$(req POST "${KONG_PROXY}/chat" \
   -H "Authorization: Bearer ${ENG_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"max_tokens":50,"messages":[{"role":"user","content":"Charge card 4111111111111111 please"}]}')
+  -d '{"max_tokens":50,"messages":[{"role":"user","content":"Charge card 4111111111111111 please"}]}'); load_code
 if [[ "$HTTP_CODE" == "400" ]]; then
   pass "Credit card pattern blocked (HTTP 400)"
 else
@@ -246,7 +255,7 @@ fi
 body=$(req POST "${KONG_PROXY}/chat" \
   -H "Authorization: Bearer ${ENG_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"max_tokens":50,"messages":[{"role":"user","content":"api_key=sk-abc123secret"}]}')
+  -d '{"max_tokens":50,"messages":[{"role":"user","content":"api_key=sk-abc123secret"}]}'); load_code
 if [[ "$HTTP_CODE" == "400" ]]; then
   pass "api_key=value credential pattern blocked (HTTP 400)"
 else
@@ -257,7 +266,7 @@ fi
 body=$(req POST "${KONG_PROXY}/chat" \
   -H "Authorization: Bearer ${ENG_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"max_tokens":50,"messages":[{"role":"user","content":"password: supersecret123"}]}')
+  -d '{"max_tokens":50,"messages":[{"role":"user","content":"password: supersecret123"}]}'); load_code
 if [[ "$HTTP_CODE" == "400" ]]; then
   pass "password: value credential pattern blocked (HTTP 400)"
 else
@@ -269,7 +278,7 @@ if [[ $NO_LLM -eq 0 ]]; then
   body=$(req POST "${KONG_PROXY}/chat" \
     -H "Authorization: Bearer ${ENG_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d '{"max_tokens":20,"messages":[{"role":"user","content":"What is 2+2?"}]}')
+    -d '{"max_tokens":20,"messages":[{"role":"user","content":"What is 2+2?"}]}'); load_code
   if [[ "$HTTP_CODE" == "200" ]]; then
     pass "Clean message passes guard (HTTP 200)"
   else
@@ -327,7 +336,7 @@ body=$(req GET "${BACKEND}/usage/summary?group_by=department")
 assert_status "GET /usage/summary?group_by=department" "200"
 
 # Invalid group_by should return 400
-body=$(req GET "${BACKEND}/usage/summary?group_by=invalid_column")
+body=$(req GET "${BACKEND}/usage/summary?group_by=invalid_column"); load_code
 if [[ "$HTTP_CODE" == "400" ]]; then
   pass "GET /usage/summary invalid group_by returns 400"
 else
@@ -356,7 +365,7 @@ assert_status "GET /usage/cost/by-department" "200"
 assert_json   "GET /usage/cost/by-department returns JSON" "$body"
 
 # Non-existent user should return 404
-body=$(req GET "${BACKEND}/usage/cost/by-user/no-such-user-xyz")
+body=$(req GET "${BACKEND}/usage/cost/by-user/no-such-user-xyz"); load_code
 if [[ "$HTTP_CODE" == "404" ]]; then
   pass "GET /usage/cost/by-user/{id} returns 404 for unknown user"
 else
@@ -364,7 +373,7 @@ else
 fi
 
 # Non-existent session should return 404
-body=$(req GET "${BACKEND}/usage/sessions/00000000-0000-0000-0000-000000000000")
+body=$(req GET "${BACKEND}/usage/sessions/00000000-0000-0000-0000-000000000000"); load_code
 if [[ "$HTTP_CODE" == "404" ]]; then
   pass "GET /usage/sessions/{id} returns 404 for unknown session"
 else
@@ -489,7 +498,7 @@ fi
 # Invalid enforcement value should be rejected
 body=$(req PUT "${BACKEND}/config/teams/nlp-platform" \
   -H "Content-Type: application/json" \
-  -d '{"enforcement": "nuclear"}')
+  -d '{"enforcement": "nuclear"}'); load_code
 if [[ "$HTTP_CODE" == "400" ]]; then
   pass "Invalid enforcement value rejected (HTTP 400)"
 else
@@ -499,7 +508,7 @@ fi
 # Non-existent team should return 404
 body=$(req PUT "${BACKEND}/config/teams/no-such-team-xyz" \
   -H "Content-Type: application/json" \
-  -d '{"budget_usd": 100}')
+  -d '{"budget_usd": 100}'); load_code
 if [[ "$HTTP_CODE" == "404" ]]; then
   pass "PUT /config/teams/{id} returns 404 for unknown team"
 else
@@ -520,7 +529,7 @@ fi
 
 section "10 · Kong sync (POST /sync/kong)"
 
-body=$(req POST "${BACKEND}/sync/kong")
+body=$(req POST "${BACKEND}/sync/kong"); load_code
 if [[ "$HTTP_CODE" == "200" ]]; then
   assert_json "POST /sync/kong returns JSON" "$body"
   TEAMS_SYNCED=$(echo "$body" | jq '.teams_synced' 2>/dev/null || echo "0")
