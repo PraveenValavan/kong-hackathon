@@ -19,6 +19,7 @@ export default function Sidebar({ currentPage, currentRole, access, onNavigate, 
     { key: 'logs',       label: 'Token Logs',      section: null,       icon: <LogsIcon /> },
     { key: 'governance', label: 'Governance',      section: 'Admin',    icon: <GovernanceIcon /> },
     { key: 'teams',      label: 'Teams & Budgets', section: null,       icon: <TeamsIcon /> },
+    { key: 'terminal',   label: 'AIRA Terminal',   section: null,       icon: <TerminalIcon />, badge: 'LIVE', badgeType: 'warn' },
   ];
 
   let lastSection = null;
@@ -120,4 +121,7 @@ function GovernanceIcon() {
 }
 function TeamsIcon() {
   return <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4"><circle cx="5" cy="4" r="2"/><circle cx="10" cy="5" r="1.5"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4"/><path d="M10 8c1.7 0 3 1.3 3 3"/></svg>;
+}
+function TerminalIcon() {
+  return <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="1" y="2" width="12" height="10" rx="1.5"/><path d="M3 6l2.5 2L3 10"/><line x1="7" y1="10" x2="11" y2="10"/></svg>;
 }

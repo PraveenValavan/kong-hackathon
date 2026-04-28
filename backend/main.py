@@ -7,7 +7,7 @@ app = FastAPI(title="AIRA Usage Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:4173"],
     allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
@@ -1049,6 +1049,55 @@ def get_models():
          "input_cost_per_1m": costs[0], "output_cost_per_1m": costs[1]}
         for mid, costs in MODEL_COSTS.items()
     ]
+
+
+@app.post("/chat")
+async def chat(payload: dict[str, Any]):
+    messages = payload.get("messages", [])
+    model    = payload.get("model", "claude-haiku-4-5-20251001")
+    max_tok  = payload.get("max_tokens", 1024)
+
+    # Normalise to a supported Anthropic model
+    if model not in MODEL_COSTS or "claude" not in model:
+        model = "claude-haiku-4-5-20251001"
+
+    try:
+        resp = anthropic.Anthropic().messages.create(
+            model=model,
+            max_tokens=max_tok,
+            messages=[{"role": m["role"], "content": m["content"]} for m in messages],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    prompt_tok     = resp.usage.input_tokens
+    completion_tok = resp.usage.output_tokens
+    in_rate, out_rate = MODEL_COSTS.get(model, (3.00, 15.00))
+    cost = (prompt_tok * in_rate + completion_tok * out_rate) / 1_000_000
+
+    # Self-report into usage DB so the dashboard reflects terminal usage
+    now = datetime.datetime.utcnow().isoformat()
+    with get_db() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO usage_events
+               (event_id, ts, session_date, user_id, team_id, department,
+                provider, model, prompt_tokens, completion_tokens, total_tokens, cost_usd, status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (f"terminal-{now}", now, now[:10], "terminal", "nlp-platform", "R&D",
+             "anthropic", model, prompt_tok, completion_tok,
+             prompt_tok + completion_tok, cost, 200),
+        )
+        conn.commit()
+
+    # OpenAI-compatible shape so Terminal.jsx needs no changes
+    return {
+        "choices": [{"message": {"role": "assistant", "content": resp.content[0].text}}],
+        "usage": {
+            "prompt_tokens":     prompt_tok,
+            "completion_tokens": completion_tok,
+            "total_tokens":      prompt_tok + completion_tok,
+        },
+    }
 
 
 @app.get("/health")

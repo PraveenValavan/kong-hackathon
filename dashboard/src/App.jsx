@@ -9,11 +9,12 @@ import Chargeback from './pages/Chargeback';
 import TokenLogs from './pages/TokenLogs';
 import Governance from './pages/Governance';
 import Teams from './pages/Teams';
+import Terminal from './pages/Terminal';
 
 export const ROLE_ACCESS = {
   finops:      ['overview', 'cost', 'chargeback', 'forecast'],
-  engineering: ['overview', 'cost', 'anomalies', 'forecast', 'logs'],
-  admin:       ['overview', 'cost', 'anomalies', 'forecast', 'chargeback', 'logs', 'governance', 'teams'],
+  engineering: ['overview', 'cost', 'anomalies', 'forecast', 'logs', 'terminal'],
+  admin:       ['overview', 'cost', 'anomalies', 'forecast', 'chargeback', 'logs', 'governance', 'teams', 'terminal'],
 };
 
 export const PAGE_TITLES = {
@@ -25,6 +26,7 @@ export const PAGE_TITLES = {
   logs:       'Token Logs',
   governance: 'Governance',
   teams:      'Teams & Budgets',
+  terminal:   'AIRA Terminal',
 };
 
 const PAGES = {
@@ -36,6 +38,7 @@ const PAGES = {
   logs:       TokenLogs,
   governance: Governance,
   teams:      Teams,
+  terminal:   Terminal,
 };
 
 export default function App() {
@@ -45,6 +48,8 @@ export default function App() {
 
   const access = ROLE_ACCESS[currentRole];
   const PageComponent = PAGES[currentPage];
+
+  const isTerminal = currentPage === 'terminal';
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -56,18 +61,24 @@ export default function App() {
         onRoleChange={setCurrentRole}
       />
       <main className="main">
-        <Topbar
-          title={PAGE_TITLES[currentPage]}
-          timeFilter={timeFilter}
-          onTimeFilterChange={setTimeFilter}
-        />
-        <div className="content">
-          <PageComponent
+        {!isTerminal && (
+          <Topbar
+            title={PAGE_TITLES[currentPage]}
             timeFilter={timeFilter}
-            currentRole={currentRole}
-            onNavigate={setCurrentPage}
+            onTimeFilterChange={setTimeFilter}
           />
-        </div>
+        )}
+        {isTerminal ? (
+          <Terminal currentRole={currentRole} onNavigate={setCurrentPage} />
+        ) : (
+          <div className="content">
+            <PageComponent
+              timeFilter={timeFilter}
+              currentRole={currentRole}
+              onNavigate={setCurrentPage}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

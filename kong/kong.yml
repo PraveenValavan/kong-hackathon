@@ -21,6 +21,26 @@ routes:
 # ─── Plugins ────────────────────────────────────────────────────────────────
 
 plugins:
+  # ── CORS — must run before OIDC so OPTIONS preflight is answered immediately
+  - name: cors
+    route: chat-route
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - OPTIONS
+      headers:
+        - Authorization
+        - Content-Type
+        - X-Session-ID
+      exposed_headers:
+        - X-Kong-Request-Id
+      credentials: true
+      max_age: 3600
+      preflight_continue: false
+
   # ── Auth (global) ────────────────────────────────────────────────────────
   - name: openid-connect
     config:
@@ -134,6 +154,8 @@ plugins:
             end
           end
           kong.ctx.shared.session_id = kong.request.get_header("x-session-id")
+          -- Strip Origin so Anthropic does not treat this as a direct browser request
+          kong.service.request.clear_header("origin")
 
   # ── File Log — structured NDJSON audit trail ─────────────────────────────
 

@@ -4,9 +4,15 @@
   "description": "Live token usage, cost tracking, and model switching for Kong AI Gateway",
   "version": "0.1.0",
   "publisher": "codeartisans",
-  "engines": { "vscode": "^1.80.0" },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./src/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -30,6 +36,11 @@
     },
     "commands": [
       {
+        "command": "aira.openTerminal",
+        "title": "AIRA: Open Terminal",
+        "category": "AIRA"
+      },
+      {
         "command": "aira.togglePanel",
         "title": "AIRA: Toggle Panel",
         "category": "AIRA"
@@ -42,14 +53,17 @@
     ],
     "keybindings": [
       {
-        "command": "aira.togglePanel",
+        "command": "aira.openTerminal",
         "key": "ctrl+shift+a",
         "mac": "cmd+shift+a"
       }
     ]
   },
-  "dependencies": {},
+  "scripts": {
+    "test": "jest --testPathPattern=test/"
+  },
   "devDependencies": {
-    "@types/vscode": "^1.80.0"
+    "@types/vscode": "^1.80.0",
+    "jest": "^29.7.0"
   }
 }
