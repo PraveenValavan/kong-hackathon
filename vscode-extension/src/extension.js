@@ -33,8 +33,8 @@ function fetchJson(url) {
   });
 }
 
-/** @param {string} url @param {object} body @returns {Promise<any>} */
-function postJson(url, body) {
+/** @param {string} url @param {object} body @param {Record<string,string>} [extraHeaders] @returns {Promise<any>} */
+function postJson(url, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
     const opts = new URL(url);
@@ -43,12 +43,12 @@ function postJson(url, body) {
       port: opts.port,
       path: opts.pathname,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), ...extraHeaders },
     }, res => {
       let raw = '';
       res.on('data', c => raw += c);
       res.on('end', () => {
-        try { resolve(JSON.parse(raw)); }
+        try { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
         catch (e) { reject(e); }
       });
     });
@@ -117,8 +117,9 @@ const MOCK = {
 // ---------------------------------------------------------------------------
 
 class AiraPanelProvider {
-  constructor(extensionUri) {
+  constructor(extensionUri, onSwitchModel) {
     this._extensionUri = extensionUri;
+    this._onSwitchModel = onSwitchModel;
     this._view = null;
     this._data = MOCK;
     this._simTokens = MOCK.tokensUsed;
@@ -129,6 +130,10 @@ class AiraPanelProvider {
     return !!this._view?.visible;
   }
 
+  setModel(model) {
+    this._view?.webview.postMessage({ type: 'setModel', model });
+  }
+
   resolveWebviewView(webviewView) {
     this._view = webviewView;
     webviewView.webview.options = { enableScripts: true };
@@ -136,7 +141,7 @@ class AiraPanelProvider {
 
     webviewView.webview.onDidReceiveMessage(msg => {
       if (msg.command === 'switchModel') {
-        vscode.window.showInformationMessage(`AIRA: Switched to ${msg.model}`);
+        this._onSwitchModel?.(msg.model);
       }
     });
 
@@ -649,10 +654,14 @@ function toggleSection(name) {
   toggle.classList.toggle('open', !open);
 }
 
-function pickModel(key) {
+function applyModel(key) {
   document.querySelectorAll('.model-opt').forEach(el => {
     el.classList.toggle('active', el.dataset.model === key);
   });
+}
+
+function pickModel(key) {
+  applyModel(key);
   vscode.postMessage({ command: 'switchModel', model: key });
 }
 
@@ -701,6 +710,9 @@ window.addEventListener('message', ({ data: msg }) => {
   if (msg.type === 'sim') {
     renderMeter(msg.tokensUsed, msg.remaining);
   }
+  if (msg.type === 'setModel') {
+    applyModel(msg.model);
+  }
 });
 
 init();
@@ -722,7 +734,7 @@ class AiraTerminalPanel {
   /** @type {AiraTerminalPanel | null} */
   static currentPanel = null;
 
-  static createOrShow(extensionUri) {
+  static createOrShow(extensionUri, initialModel, onSwitchModel) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -739,22 +751,27 @@ class AiraTerminalPanel {
       { enableScripts: true, retainContextWhenHidden: true }
     );
 
-    AiraTerminalPanel.currentPanel = new AiraTerminalPanel(panel, extensionUri);
+    AiraTerminalPanel.currentPanel = new AiraTerminalPanel(panel, extensionUri, initialModel, onSwitchModel);
   }
 
-  constructor(panel, extensionUri) {
+  constructor(panel, extensionUri, initialModel, onSwitchModel) {
     this._panel = panel;
     this._extensionUri = extensionUri;
-    this._panel.webview.html = this._getHtml(this._panel.webview);
+    this._panel.webview.html = this._getHtml(this._panel.webview, initialModel || 'claude-sonnet-4-6');
     this._panel.onDidDispose(() => { AiraTerminalPanel.currentPanel = null; });
     this._panel.webview.onDidReceiveMessage(async (/** @type {any} */ msg) => {
       if (msg.command === 'switchModel') {
-        vscode.window.showInformationMessage(`AIRA: Model set to ${msg.model}`);
+        onSwitchModel?.(msg.model);
       }
       if (msg.command === 'chat') {
         try {
-          const result = await postJson('http://localhost:8002/chat', msg.payload);
-          this._panel.webview.postMessage({ type: 'chatResult', id: msg.id, data: result });
+          const headers = /** @type {Record<string,string>} */ (msg.token ? { 'Authorization': `Bearer ${msg.token}` } : {});
+          const result = await postJson('http://localhost:8000/chat', msg.payload, headers);
+          if (result.status === 400) {
+            this._panel.webview.postMessage({ type: 'chatBlocked', id: msg.id });
+          } else {
+            this._panel.webview.postMessage({ type: 'chatResult', id: msg.id, data: result.body });
+          }
         } catch (e) {
           const err = /** @type {Error} */ (e);
           this._panel.webview.postMessage({ type: 'chatError', id: msg.id, error: err.message });
@@ -763,8 +780,13 @@ class AiraTerminalPanel {
     });
   }
 
-  _getHtml(webview) {
+  setModel(model) {
+    this._panel.webview.postMessage({ type: 'setModel', model });
+  }
+
+  _getHtml(webview, initialModel) {
     const nonce = Math.random().toString(36).slice(2);
+    const startModel = initialModel || 'claude-sonnet-4-6';
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -886,7 +908,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
           <div class="input-bar">
             <div class="input-prompt">
               $
-              <span class="input-prompt-model" id="input-model-label">claude-sonnet-4-6</span>
+              <span class="input-prompt-model" id="input-model-label">${startModel}</span>
               ›
             </div>
             <input class="input-field" id="user-input" type="text" placeholder="Type your prompt here…" />
@@ -966,7 +988,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
 
 <div class="status-bar">
   <div class="sb-item"><span id="sb-conn" style="color:var(--amber)">◉</span><span id="sb-conn-text">CONNECTING</span></div>
-  <div class="sb-item"><span class="sb-model" id="sb-model">claude-sonnet-4-6</span></div>
+  <div class="sb-item"><span class="sb-model" id="sb-model">${startModel}</span></div>
   <div class="sb-item"><span class="sb-tokens" id="sb-tokens" style="color:var(--t-safe)">0 / 500k</span></div>
   <div class="sb-item"><span class="sb-pct" id="sb-pct" style="background:rgba(34,197,94,.12);color:var(--t-safe)">0.0%</span></div>
   <div class="sb-item" style="border-right:1px solid var(--border)"><span style="color:var(--text3)">dept: R&amp;D</span></div>
@@ -1001,7 +1023,7 @@ const SEG_ZONES = [
 
 const state = {
   tokensUsed:0, sessionPrompt:0, sessionCompletion:0,
-  requests:0, sessionCost:0, currentModel:'claude-sonnet-4-6',
+  requests:0, sessionCost:0, currentModel:'${startModel}',
   startTime:Date.now(), bearerToken:null, connStatus:'connecting',
   sending:false,
   conversationHistory: [],
@@ -1117,13 +1139,17 @@ function appendDivider() {
   out.scrollTop = out.scrollHeight;
 }
 
-function switchModel(key) {
+function applyModel(key) {
   state.currentModel = key;
   EL.sbModel.textContent = key;
   EL.inputModelLabel.textContent = key;
   document.querySelectorAll('.model-option').forEach(el => {
     el.classList.toggle('active', el.getAttribute('onclick').includes(key));
   });
+}
+
+function switchModel(key) {
+  applyModel(key);
   appendLine('SYS', 'sys', 'Model preference set to ' + key, 'muted');
   vscode.postMessage({ command: 'switchModel', model: key });
 }
@@ -1232,7 +1258,11 @@ function sendPrompt() {
     document.getElementById(thinkId)?.remove();
 
     if (err) {
-      appendLine('WARN','warn', 'Backend unreachable — ' + err, 'danger');
+      if (err === 'PII_BLOCKED') {
+        appendLine('WARN', 'warn', 'Request blocked by PII guard — remove sensitive data (SSN, credit card, credentials) and try again', 'danger');
+      } else {
+        appendLine('WARN','warn', 'Backend unreachable — ' + err, 'danger');
+      }
       state.sending = false;
       input.focus();
       return;
@@ -1266,7 +1296,7 @@ function sendPrompt() {
     input.focus();
   });
 
-  vscode.postMessage({ command:'chat', id: msgId, payload:{
+  vscode.postMessage({ command:'chat', id: msgId, token: state.bearerToken, payload:{
     messages,
     model: state.currentModel,
     max_tokens:1024,
@@ -1274,12 +1304,22 @@ function sendPrompt() {
 }
 
 window.addEventListener('message', ({ data: msg }) => {
+  if (msg.type === 'chatBlocked') {
+    const cb = pendingChat.get(msg.id);
+    if (cb) {
+      pendingChat.delete(msg.id);
+      cb(null, 'PII_BLOCKED');
+    }
+  }
   if (msg.type === 'chatResult' || msg.type === 'chatError') {
     const cb = pendingChat.get(msg.id);
     if (cb) {
       pendingChat.delete(msg.id);
       cb(msg.data ?? null, msg.error ?? null);
     }
+  }
+  if (msg.type === 'setModel') {
+    applyModel(msg.model);
   }
 });
 
@@ -1299,6 +1339,7 @@ setInterval(() => {
 setInterval(pollBackend, 15000);
 
 initEls();
+applyModel(state.currentModel);
 bootstrap();
 pollBackend();
 </script>
@@ -1313,7 +1354,20 @@ pollBackend();
 
 /** @param {vscode.ExtensionContext} context */
 function activate(context) {
-  const provider = new AiraPanelProvider(context.extensionUri);
+  const DEFAULT_MODEL = 'claude-sonnet-4-6';
+
+  function getModel() {
+    return context.workspaceState.get('aira.currentModel', DEFAULT_MODEL);
+  }
+
+  function saveAndSync(model) {
+    context.workspaceState.update('aira.currentModel', model);
+    // Push to whichever panel is NOT the source of the change
+    provider.setModel(model);
+    AiraTerminalPanel.currentPanel?.setModel(model);
+  }
+
+  const provider = new AiraPanelProvider(context.extensionUri, (model) => saveAndSync(model));
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('aira.panel', provider, {
@@ -1332,7 +1386,7 @@ function activate(context) {
   // Open full terminal panel in editor area
   context.subscriptions.push(
     vscode.commands.registerCommand('aira.openTerminal', () => {
-      AiraTerminalPanel.createOrShow(context.extensionUri);
+      AiraTerminalPanel.createOrShow(context.extensionUri, getModel(), (model) => saveAndSync(model));
     })
   );
 

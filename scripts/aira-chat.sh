@@ -3,15 +3,14 @@
 #
 # Usage:
 #   ./scripts/aira-chat.sh "Your message here"
+#   ./scripts/aira-chat.sh "Your message here" --model claude-sonnet-4-6
 #   ./scripts/aira-chat.sh "Your message here" --role finops
 #   ./scripts/aira-chat.sh "Your message here" --session <uuid>
 #
 # Options:
-#   --role     engineering | finops | admin | datascience  (default: engineering)
-#   --session  UUID to group requests into a session (auto-generated if omitted)
-#
-# Kong's ai-proxy-advanced balances traffic between claude-haiku (2/3) and
-# claude-sonnet (1/3). The model selected for each call is shown in the output.
+#   --model    claude-haiku-4-5-20251001 | claude-sonnet-4-6  (default: let Kong balance)
+#   --role     engineering | finops | admin | datascience      (default: engineering)
+#   --session  UUID to group requests into a session           (auto-generated if omitted)
 
 set -euo pipefail
 
@@ -22,11 +21,13 @@ CLIENT_ID="${AIRA_CLIENT_ID:-aira-local}"
 CLIENT_SECRET="${AIRA_CLIENT_SECRET:-aira-secret}"
 ROLE="engineering"
 SESSION_ID=""
+MODEL=""
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 MESSAGE=""
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --model)   MODEL="$2";      shift 2 ;;
     --role)    ROLE="$2";       shift 2 ;;
     --session) SESSION_ID="$2"; shift 2 ;;
     *)         MESSAGE="$1";    shift   ;;
@@ -34,11 +35,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$MESSAGE" ]]; then
-  echo "Usage: $0 \"Your message\" [--role engineering|finops|admin|datascience] [--session <uuid>]"
+  echo "Usage: $0 \"Your message\" [--model claude-haiku-4-5-20251001|claude-sonnet-4-6] [--role engineering|finops|admin|datascience] [--session <uuid>]"
   exit 1
 fi
 
-# Auto-generate session ID if not provided
 if [[ -z "$SESSION_ID" ]]; then
   SESSION_ID=$(uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())")
 fi
@@ -55,25 +55,51 @@ if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
 fi
 
 # ── Build request body ────────────────────────────────────────────────────────
-# No model field — ai-proxy-advanced selects the model via round-robin balancer.
+# Do NOT include model in the body — ai-proxy-advanced's round-robin selects
+# the target first, then validates the request model matches. Sending a model
+# field conflicts whenever the balancer picks the other target.
+# The --model flag is recorded and shown if it matches what Kong selected.
 BODY=$(jq -n \
-  --argjson content "$(echo "$MESSAGE" | jq -Rs .)" \
+  --arg content "$MESSAGE" \
   '{max_tokens: 1024, messages: [{role: "user", content: $content}]}')
 
 # ── Call Kong AI Gateway ──────────────────────────────────────────────────────
-RESPONSE=$(curl -sf -X POST "${KONG_PROXY}/chat/v1/messages" \
+BODY_FILE=$(mktemp)
+HTTP_CODE=$(curl -s -o "$BODY_FILE" -w "%{http_code}" -X POST "${KONG_PROXY}/chat" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "X-Session-ID: $SESSION_ID" \
   -d "$BODY")
+HTTP_BODY=$(cat "$BODY_FILE")
+rm -f "$BODY_FILE"
+
+# ── Handle errors ─────────────────────────────────────────────────────────────
+if [[ "$HTTP_CODE" != "200" ]]; then
+  ERROR_MSG=$(echo "$HTTP_BODY" | jq -r '.error.message // empty' 2>/dev/null)
+  if [[ "$HTTP_CODE" == "400" && "$ERROR_MSG" == "bad request" ]]; then
+    echo ""
+    echo "BLOCKED  : Request rejected by Kong PII guard"
+    echo "           Remove sensitive data (SSN, credit card, credentials) and retry."
+    echo ""
+    exit 2
+  fi
+  echo "Error: Kong returned HTTP $HTTP_CODE — $ERROR_MSG"
+  exit 1
+fi
 
 # ── Print result ──────────────────────────────────────────────────────────────
+ACTUAL_MODEL=$(echo "$HTTP_BODY" | jq -r .model)
+MODEL_LINE="$ACTUAL_MODEL"
+if [[ -n "$MODEL" && "$MODEL" != "$ACTUAL_MODEL" ]]; then
+  MODEL_LINE="$ACTUAL_MODEL  (requested: $MODEL — Kong balancer overrides model selection)"
+fi
+
 echo ""
-echo "Model    : $(echo "$RESPONSE" | jq -r .model)"
+echo "Model    : $MODEL_LINE"
 echo "Role     : $ROLE"
 echo "Session  : $SESSION_ID"
 echo ""
 echo "Response :"
-echo "$RESPONSE" | jq -r '.choices[0].message.content'
+echo "$HTTP_BODY" | jq -r '.choices[0].message.content'
 echo ""
-echo "Tokens   : prompt=$(echo "$RESPONSE" | jq -r .usage.prompt_tokens) completion=$(echo "$RESPONSE" | jq -r .usage.completion_tokens) total=$(echo "$RESPONSE" | jq -r .usage.total_tokens)"
+echo "Tokens   : prompt=$(echo "$HTTP_BODY" | jq -r .usage.prompt_tokens) completion=$(echo "$HTTP_BODY" | jq -r .usage.completion_tokens) total=$(echo "$HTTP_BODY" | jq -r .usage.total_tokens)"
