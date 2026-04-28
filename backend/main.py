@@ -2,6 +2,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Optional
 import sqlite3, os, datetime, json
+import anthropic as _anthropic
+import openai as _openai
+from google import genai as _genai
 
 app = FastAPI(title="AIRA Usage Backend")
 
@@ -22,7 +25,6 @@ MODEL_COSTS: dict[str, tuple[float, float]] = {
     "gemini-2.5-flash":          (0.075, 0.30),
 }
 
-import anthropic
 import calendar
 
 TEAM_BUDGETS: dict[str, float] = {
@@ -665,7 +667,7 @@ def get_forecast(department: Optional[str] = None):
     )
 
     import json as _json
-    message = anthropic.Anthropic().messages.create(
+    message = _anthropic.Anthropic().messages.create(
         model="claude-sonnet-4-6",
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
@@ -696,7 +698,7 @@ def _call_llm_judge(prompt_text: str, response_text: str, model_used: str, cost_
         '{"relevance":<int>,"safety":<int>,"conciseness":<int>,"cost_efficiency":<int>,'
         '"score":<float avg>,"verdict":"pass|flag|fail","reason":"one sentence"}'
     )
-    msg = anthropic.Anthropic().messages.create(
+    msg = _anthropic.Anthropic().messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=256,
         messages=[{"role": "user", "content": judge_prompt}],
@@ -1063,31 +1065,74 @@ def get_models():
     ]
 
 
+def _provider_for(model: str) -> str:
+    if "claude" in model:   return "anthropic"
+    if "gpt"    in model:   return "openai"
+    return "google"
+
+
+def _call_model(model: str, messages: list, max_tok: int) -> tuple[str, int, int]:
+    """Returns (reply_text, prompt_tokens, completion_tokens)."""
+    provider = _provider_for(model)
+
+    if provider == "anthropic":
+        key = os.getenv("ANTHROPIC_API_KEY", "")
+        if not key:
+            raise ValueError("ANTHROPIC_API_KEY not configured")
+        resp = _anthropic.Anthropic(api_key=key).messages.create(
+            model=model, max_tokens=max_tok,
+            messages=[{"role": m["role"], "content": m["content"]} for m in messages],
+        )
+        return resp.content[0].text, resp.usage.input_tokens, resp.usage.output_tokens
+
+    if provider == "openai":
+        key = os.getenv("OPENAI_API_KEY", "")
+        if not key:
+            raise ValueError("OPENAI_API_KEY not configured — GPT-4o unavailable")
+        client = _openai.OpenAI(api_key=key)
+        resp = client.chat.completions.create(
+            model=model, max_tokens=max_tok,
+            messages=[{"role": m["role"], "content": m["content"]} for m in messages],
+        )
+        c = resp.choices[0].message.content
+        return c, resp.usage.prompt_tokens, resp.usage.completion_tokens
+
+    # google — try both env var names (GEMINI_API_KEY is the .env convention)
+    key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY", "")
+    if not key:
+        raise ValueError("GEMINI_API_KEY not configured — Gemini unavailable")
+    client = _genai.Client(api_key=key)
+    contents = [{"role": m["role"] if m["role"] != "assistant" else "model",
+                 "parts": [{"text": m["content"]}]} for m in messages]
+    resp = client.models.generate_content(model=model, contents=contents)
+    text = resp.text
+    try:
+        p_tok = resp.usage_metadata.prompt_token_count
+        c_tok = resp.usage_metadata.candidates_token_count
+    except Exception:
+        p_tok = len(text) // 4
+        c_tok = len(text) // 4
+    return text, p_tok, c_tok
+
+
 @app.post("/chat")
 async def chat(payload: dict[str, Any]):
     messages = payload.get("messages", [])
     model    = payload.get("model", "claude-haiku-4-5-20251001")
     max_tok  = payload.get("max_tokens", 1024)
 
-    # Normalise to a supported Anthropic model
-    if model not in MODEL_COSTS or "claude" not in model:
+    if model not in MODEL_COSTS:
         model = "claude-haiku-4-5-20251001"
 
     try:
-        resp = anthropic.Anthropic().messages.create(
-            model=model,
-            max_tokens=max_tok,
-            messages=[{"role": m["role"], "content": m["content"]} for m in messages],
-        )
+        reply_text, prompt_tok, completion_tok = _call_model(model, messages, max_tok)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
-    prompt_tok     = resp.usage.input_tokens
-    completion_tok = resp.usage.output_tokens
     in_rate, out_rate = MODEL_COSTS.get(model, (3.00, 15.00))
     cost = (prompt_tok * in_rate + completion_tok * out_rate) / 1_000_000
+    provider = _provider_for(model)
 
-    # Self-report into usage DB so the dashboard reflects terminal usage
     now = datetime.datetime.utcnow().isoformat()
     with get_db() as conn:
         conn.execute(
@@ -1096,14 +1141,13 @@ async def chat(payload: dict[str, Any]):
                 provider, model, prompt_tokens, completion_tokens, total_tokens, cost_usd, status)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (f"terminal-{now}", now, now[:10], "terminal", "nlp-platform", "R&D",
-             "anthropic", model, prompt_tok, completion_tok,
+             provider, model, prompt_tok, completion_tok,
              prompt_tok + completion_tok, cost, 200),
         )
         conn.commit()
 
-    # OpenAI-compatible shape so Terminal.jsx needs no changes
     return {
-        "choices": [{"message": {"role": "assistant", "content": resp.content[0].text}}],
+        "choices": [{"message": {"role": "assistant", "content": reply_text}}],
         "usage": {
             "prompt_tokens":     prompt_tok,
             "completion_tokens": completion_tok,

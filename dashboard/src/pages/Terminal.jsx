@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiFetch } from '../api/client';
 
-const KONG_PROXY   = 'http://localhost:8000';
 const BACKEND_URL  = 'http://localhost:8002';
 const OAUTH2_URL   = 'http://localhost:8080/default/token';
 const LIMIT        = 500_000;
@@ -40,34 +38,10 @@ function nowStr() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
   wrap: {
-    display:'flex', flexDirection:'column', height:'100%',
+    display:'flex', flexDirection:'column', flex:1, minHeight:0,
     fontFamily:"'IBM Plex Mono', monospace", fontSize:12,
     background:'#0c0c0e', color:'#e8e8ec', overflow:'hidden',
   },
-  chrome: {
-    height:36, background:'#0a0a0c', borderBottom:'1px solid #2a2a32',
-    display:'flex', alignItems:'center', padding:'0 14px', gap:8, flexShrink:0,
-    userSelect:'none',
-  },
-  traffic: { display:'flex', gap:7 },
-  dot: (color) => ({ width:12, height:12, borderRadius:'50%', background:color }),
-  chromeTitle: { flex:1, textAlign:'center', fontSize:11, color:'#55555f', letterSpacing:'0.5px' },
-  tabBar: {
-    height:38, background:'#0e0e10', borderBottom:'1px solid #2a2a32',
-    display:'flex', alignItems:'flex-end', padding:'0 8px', gap:2, flexShrink:0,
-  },
-  tab: (active) => ({
-    height:30, padding:'0 14px', fontSize:11,
-    color: active ? '#e8e8ec' : '#55555f',
-    cursor:'pointer', display:'flex', alignItems:'center', gap:7,
-    borderRadius:'6px 6px 0 0',
-    border: active ? '1px solid #2a2a32' : '1px solid transparent',
-    borderBottom:'none',
-    background: active ? '#111113' : 'none',
-    position:'relative', userSelect:'none',
-  }),
-  tabDot: (color) => ({ width:7, height:7, borderRadius:'50%', background:color, flexShrink:0 }),
-  tabSpacer: { flex:1 },
   body: { flex:1, display:'flex', overflow:'hidden' },
   gutter: {
     width:38, background:'#0a0a0c', borderRight:'1px solid #2a2a32',
@@ -77,7 +51,6 @@ const S = {
   gutterLine: { width:1, flex:1, background:'#2a2a32' },
   gutterNum: { fontSize:9, color:'#55555f', writingMode:'vertical-rl', letterSpacing:2 },
   mainPane: { flex:1, display:'flex', flexDirection:'column', overflow:'hidden' },
-  tabPanel: (active) => ({ display: active ? 'flex' : 'none', flex:1, flexDirection:'column', overflow:'hidden' }),
   chatLayout: { flex:1, display:'flex', overflow:'hidden' },
   termArea: { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', borderRight:'1px solid #2a2a32' },
   termOutput: {
@@ -185,7 +158,7 @@ export default function Terminal({ currentRole }) {
   // Live usage stats from backend
   const [usage, setUsage] = useState({
     tokensUsed: 0, sessionPrompt: 0, sessionCompletion: 0,
-    requests: 0, sessionCost: 0, deptAvg: 0,
+    requests: 0, sessionCost: 0, depts: {},
   });
 
   const outputRef = useRef(null);
@@ -235,23 +208,37 @@ export default function Terminal({ currentRole }) {
   // ── Poll backend for live usage stats ───────────────────────────────────────
   const pollUsage = useCallback(async () => {
     try {
-      const [summary, deptCost] = await Promise.all([
-        apiFetch('/usage/summary', { group_by: 'user_id', since: new Date(Date.now() - 3600_000).toISOString().slice(0,10) }),
-        apiFetch('/usage/cost/by-department', { since: new Date(Date.now() - 3600_000).toISOString().slice(0,10) }),
+      const since = new Date(Date.now() - 3600_000).toISOString().slice(0, 10);
+      const [summaryRes, deptRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/usage/summary?group_by=user_id&since=${since}`),
+        fetch(`${BACKEND_URL}/usage/cost/by-department?since=${since}`),
       ]);
+      const summary  = summaryRes.ok  ? await summaryRes.json()  : [];
+      const deptCost = deptRes.ok     ? await deptRes.json()     : [];
 
-      const totalTokens = (summary ?? []).reduce((a, r) => a + (r.total_tokens ?? 0), 0);
-      const totalPrompt = (summary ?? []).reduce((a, r) => a + (r.prompt_tokens ?? 0), 0);
+      const totalTokens     = (summary ?? []).reduce((a, r) => a + (r.total_tokens  ?? 0), 0);
+      const totalPrompt     = (summary ?? []).reduce((a, r) => a + (r.prompt_tokens  ?? 0), 0);
       const totalCompletion = (summary ?? []).reduce((a, r) => a + (r.completion_tokens ?? 0), 0);
-      const totalCost = (summary ?? []).reduce((a, r) => a + (r.cost_usd ?? 0), 0);
-      const totalReqs = (summary ?? []).reduce((a, r) => a + (r.requests ?? 0), 0);
-      const deptAvg = (deptCost ?? []).length > 0
-        ? (deptCost ?? []).reduce((a, r) => a + (r.total_tokens ?? 0), 0) / (deptCost ?? []).length
-        : 0;
+      const totalCost       = (summary ?? []).reduce((a, r) => a + (r.cost_usd ?? 0), 0);
+      const totalReqs       = (summary ?? []).reduce((a, r) => a + (r.requests ?? 0), 0);
 
-      setUsage({ tokensUsed: totalTokens, sessionPrompt: totalPrompt, sessionCompletion: totalCompletion, requests: totalReqs, sessionCost: totalCost, deptAvg });
+      const depts = {};
+      (deptCost ?? []).forEach(r => {
+        if (r.department) {
+          depts[r.department] = { totalTokens: r.total_tokens ?? 0, pct: ((r.total_tokens ?? 0) / LIMIT) * 100 };
+        }
+      });
+
+      setUsage(prev => ({
+        tokensUsed: Math.max(totalTokens, prev.tokensUsed),
+        sessionPrompt: Math.max(totalPrompt, prev.sessionPrompt),
+        sessionCompletion: Math.max(totalCompletion, prev.sessionCompletion),
+        requests: Math.max(totalReqs, prev.requests),
+        sessionCost: Math.max(totalCost, prev.sessionCost),
+        depts,
+      }));
     } catch {
-      // backend may not be running in dev; silently ignore
+      // silently ignore — local state is already updated from responses
     }
   }, []);
 
@@ -294,12 +281,9 @@ export default function Terminal({ currentRole }) {
     setMessages(prev => [...prev, { id: thinkingId, role:'sys', content:'Waiting for response…', variant:'thinking', tag:'info', ts: nowStr() }]);
     setTimeout(scrollBottom, 50);
 
-    // Route through Kong when authenticated, fall back to backend directly
-    const endpoint = bearerToken ? `${KONG_PROXY}/chat` : `${BACKEND_URL}/chat`;
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(bearerToken && { 'Authorization': `Bearer ${bearerToken}`, 'x-session-id': `sess-${startTime}` }),
-    };
+    // Always route through backend — it handles all providers (Anthropic/OpenAI/Google)
+    const endpoint = `${BACKEND_URL}/chat`;
+    const headers = { 'Content-Type': 'application/json' };
 
     try {
       const res = await fetch(endpoint, {
@@ -340,13 +324,23 @@ export default function Terminal({ currentRole }) {
 
       addMessage('assistant', reply, 'assistant', 'ok');
 
-      if (usedTokens) {
-        const model = MODEL_COSTS[currentModel] ?? MODEL_COSTS['claude-sonnet-4-6'];
-        const cost = (promptTokens * model.inRate + completionTokens * model.outRate) / 1_000_000;
+      if (promptTokens || completionTokens) {
+        const modelCosts = MODEL_COSTS[currentModel] ?? MODEL_COSTS['claude-sonnet-4-6'];
+        const cost = (promptTokens * modelCosts.inRate + completionTokens * modelCosts.outRate) / 1_000_000;
         addMessage('sys', `tokens: ${fmt(usedTokens)} (prompt ${fmt(promptTokens)} + completion ${fmt(completionTokens)}) · cost: $${cost.toFixed(5)}`, 'muted', 'info');
+
+        // Update sidebar immediately without waiting for next poll
+        setUsage(prev => ({
+          ...prev,
+          tokensUsed:        prev.tokensUsed        + promptTokens + completionTokens,
+          sessionPrompt:     prev.sessionPrompt     + promptTokens,
+          sessionCompletion: prev.sessionCompletion + completionTokens,
+          requests:          prev.requests          + 1,
+          sessionCost:       prev.sessionCost       + cost,
+        }));
       }
 
-      // Refresh usage after a short delay for http-log propagation
+      // Refresh from backend after a short delay for http-log propagation
       setTimeout(pollUsage, 3000);
     } catch {
       setMessages(prev => prev.filter(m => m.id !== thinkingId));
@@ -381,25 +375,6 @@ export default function Terminal({ currentRole }) {
 
   return (
     <div style={S.wrap}>
-      {/* CHROME */}
-      <div style={S.chrome}>
-        <div style={S.traffic}>
-          <div style={S.dot('#ff5f57')} />
-          <div style={S.dot('#ffbd2e')} />
-          <div style={S.dot('#28ca42')} />
-        </div>
-        <div style={S.chromeTitle}>AIRA Terminal — kong-ai-gateway — praveen.valavan@codeartisans.net</div>
-      </div>
-
-      {/* TAB BAR */}
-      <div style={S.tabBar}>
-        <div style={S.tab(true)}>
-          <div style={S.tabDot('#a855f7')} />
-          {`Chat · ${currentModel}`}
-        </div>
-        <div style={S.tabSpacer} />
-      </div>
-
       {/* BODY */}
       <div style={S.body}>
         {/* LEFT GUTTER */}
@@ -417,8 +392,6 @@ export default function Terminal({ currentRole }) {
         {/* MAIN PANE */}
         <div style={S.mainPane}>
 
-          {/* ── CHAT ── */}
-          <div style={S.tabPanel(true)}>
             <div style={S.chatLayout}>
               {/* Terminal output */}
               <div style={S.termArea}>
@@ -529,10 +502,10 @@ export default function Terminal({ currentRole }) {
                 <div style={S.dataSection}>
                   <div style={S.sectionLabel}>Dept usage · this hour</div>
                   {[
-                    { label:'You',      pct: pctRaw,   color:'#f97316', isYou:true },
-                    { label:'R&D avg',  pct: usage.deptAvg > 0 ? (usage.deptAvg / LIMIT) * 100 : 38.2, color:'#555560', isYou:false },
-                    { label:'Eng avg',  pct: 22.1,     color:'#555560', isYou:false },
-                    { label:'Finance',  pct: 11.4,     color:'#555560', isYou:false },
+                    { label:'You',  pct: pctRaw,                                  color:'#f97316', isYou:true },
+                    { label:'R&D',  pct: usage.depts['R&D']?.pct ?? 0,            color:'#555560', isYou:false },
+                    { label:'Eng',  pct: usage.depts['Engineering']?.pct ?? 0,    color:'#555560', isYou:false },
+                    { label:'Fin',  pct: usage.depts['Finance']?.pct ?? 0,        color:'#555560', isYou:false },
                   ].map(({ label, pct, color, isYou }) => (
                     <div key={label} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
                       <div style={{ width:52, color: isYou ? '#9898a8' : '#55555f', flexShrink:0, fontSize:10 }}>{label}</div>
@@ -558,8 +531,6 @@ export default function Terminal({ currentRole }) {
                 </div>
               </div>
             </div>
-          </div>
-
         </div>
       </div>
 
