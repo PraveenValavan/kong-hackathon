@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -w '\\\\n\\\\nHTTP_STATUS:%{http_code}' -X POST http://localhost:8000/chat -H 'Content-Type: application/json' -H 'Authorization: Bearer eyJraWQiOiJkZWZhdWx0IiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ.EXPIRED.signature' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"hey\"}],\"max_tokens\":1024}')",
+      "Bash(curl -s -w '\\\\n\\\\nHTTP_STATUS:%{http_code}' -X POST http://localhost:8000/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"hey\"}],\"max_tokens\":1024}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('main:', d.get\\('main'\\)\\); print\\('activationEvents:', d.get\\('activationEvents'\\)\\)\")",
+      "Bash(cp /Users/praveenkumarvalavan/Documents/Work/kong-hackathon/kong/kong-hackathon/vscode-extension/aira-terminal-0.1.0.vsix .)",
+      "Bash(unzip -q aira-terminal-0.1.0.vsix extension/src/extension.js)",
+      "Bash(npm list *)",
+      "Bash(npx @vscode/vsce package --no-dependencies)",
+      "Bash(python3 -c \"import sys; d=sys.stdin.read\\(\\); print\\(d[-200:]\\)\")"
+    ]
+  }
+}

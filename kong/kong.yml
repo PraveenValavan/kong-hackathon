@@ -154,8 +154,9 @@ plugins:
             end
           end
           kong.ctx.shared.session_id = kong.request.get_header("x-session-id")
-          -- Strip Origin so Anthropic does not treat this as a direct browser request
+          -- Anthropic rejects requests with an Origin header unless this header is set
           kong.service.request.clear_header("origin")
+          kong.service.request.set_header("anthropic-dangerous-direct-browser-access", "true")
 
   # ── File Log — structured NDJSON audit trail ─────────────────────────────
 

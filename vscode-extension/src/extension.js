@@ -1188,7 +1188,7 @@ async function sendPrompt() {
   out.scrollTop = out.scrollHeight;
 
   try {
-    const res = await fetch(KONG + '/chat', {
+    let res = await fetch(KONG + '/chat', {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
@@ -1206,14 +1206,24 @@ async function sendPrompt() {
     if (res.status === 401) {
       appendLine('INFO','info','Token expired — refreshing…','muted');
       try {
-        const body = new URLSearchParams({grant_type:'client_credentials',client_id:'aira-local',client_secret:'aira-secret',scope:'engineering'});
-        const tr = await fetch(OAUTH2, {method:'POST',body});
+        const tbody = new URLSearchParams({grant_type:'client_credentials',client_id:'aira-local',client_secret:'aira-secret',scope:'engineering'});
+        const tr = await fetch(OAUTH2, {method:'POST',body:tbody});
         if (!tr.ok) throw new Error();
         const {access_token} = await tr.json();
         state.bearerToken = access_token;
-        appendLine('OK','ok','Token refreshed — please resend your message','success');
-      } catch { appendLine('WARN','warn','Token refresh failed — check OAuth2 server','danger'); }
-      state.sending=false; return;
+        appendLine('INFO','info','Token refreshed — retrying…','muted');
+        const retry = await fetch(KONG + '/chat', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.bearerToken,'x-session-id':'sess-'+state.startTime},
+          body: JSON.stringify({messages:[{role:'user',content:text}],max_tokens:1024}),
+        });
+        if (!retry.ok) {
+          const errBody = await retry.json().catch(()=>({}));
+          appendLine('WARN','warn','Auth error '+retry.status+': '+(errBody.message??errBody.error?.message??retry.statusText),'danger');
+          state.sending=false; return;
+        }
+        res = retry;
+      } catch { appendLine('WARN','warn','Token refresh failed — check OAuth2 server','danger'); state.sending=false; return; }
     }
     if (res.status === 400) {
       const err = await res.json().catch(()=>({}));
