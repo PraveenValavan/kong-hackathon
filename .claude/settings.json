@@ -34,7 +34,8 @@
       "Bash(curl -s -X POST http://localhost:8002/chat -H \"Content-Type: application/json\" -d '{\"messages\":[{\"role\":\"user\",\"content\":\"say hi in 3 words\"}],\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":50}')",
       "Bash(kill 91415)",
       "Bash(rm -rf /Users/praveenkumarvalavan/Documents/Work/kong-hackathon/kong/kong-hackathon/dashboard/node_modules/.vite)",
-      "Bash(curl -s \"http://localhost:5173/src/pages/Terminal.jsx\")"
+      "Bash(curl -s \"http://localhost:5173/src/pages/Terminal.jsx\")",
+      "Bash(\"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --install-extension aira-terminal-0.1.0.vsix --force)"
     ]
   }
 }

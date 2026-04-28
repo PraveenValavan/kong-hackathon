@@ -208,10 +208,10 @@ export default function Terminal({ currentRole }) {
   // ── Poll backend for live usage stats ───────────────────────────────────────
   const pollUsage = useCallback(async () => {
     try {
-      const since = new Date(Date.now() - 3600_000).toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
       const [summaryRes, deptRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/usage/summary?group_by=user_id&since=${since}`),
-        fetch(`${BACKEND_URL}/usage/cost/by-department?since=${since}`),
+        fetch(`${BACKEND_URL}/usage/summary?group_by=user_id&session_date=${today}`),
+        fetch(`${BACKEND_URL}/usage/cost/by-department?since=${today}`),
       ]);
       const summary  = summaryRes.ok  ? await summaryRes.json()  : [];
       const deptCost = deptRes.ok     ? await deptRes.json()     : [];
@@ -219,7 +219,7 @@ export default function Terminal({ currentRole }) {
       const totalTokens     = (summary ?? []).reduce((a, r) => a + (r.total_tokens  ?? 0), 0);
       const totalPrompt     = (summary ?? []).reduce((a, r) => a + (r.prompt_tokens  ?? 0), 0);
       const totalCompletion = (summary ?? []).reduce((a, r) => a + (r.completion_tokens ?? 0), 0);
-      const totalCost       = (summary ?? []).reduce((a, r) => a + (r.cost_usd ?? 0), 0);
+      const totalCost       = (summary ?? []).reduce((a, r) => a + (r.total_cost_usd ?? r.cost_usd ?? 0), 0);
       const totalReqs       = (summary ?? []).reduce((a, r) => a + (r.requests ?? 0), 0);
 
       const depts = {};
@@ -272,6 +272,7 @@ export default function Terminal({ currentRole }) {
   const sendPrompt = useCallback(async () => {
     const text = input.trim();
     if (!text || sending) return;
+    const estimatedInputTokens = Math.ceil(text.length / 4);
     setInput('');
     setSending(true);
 
@@ -324,21 +325,22 @@ export default function Terminal({ currentRole }) {
 
       addMessage('assistant', reply, 'assistant', 'ok');
 
-      if (promptTokens || completionTokens) {
-        const modelCosts = MODEL_COSTS[currentModel] ?? MODEL_COSTS['claude-sonnet-4-6'];
-        const cost = (promptTokens * modelCosts.inRate + completionTokens * modelCosts.outRate) / 1_000_000;
-        addMessage('sys', `tokens: ${fmt(usedTokens)} (prompt ${fmt(promptTokens)} + completion ${fmt(completionTokens)}) · cost: $${cost.toFixed(5)}`, 'muted', 'info');
+      // Use real token counts if available; fall back to client-side estimate so
+      // the sidebar always reflects activity even when usage data is missing.
+      const actualPrompt     = promptTokens     || estimatedInputTokens;
+      const actualCompletion = completionTokens || Math.ceil(reply.length / 4);
+      const modelCosts = MODEL_COSTS[currentModel] ?? MODEL_COSTS['claude-sonnet-4-6'];
+      const cost = (actualPrompt * modelCosts.inRate + actualCompletion * modelCosts.outRate) / 1_000_000;
+      addMessage('sys', `tokens: ${fmt(actualPrompt + actualCompletion)} (prompt ${fmt(actualPrompt)} + completion ${fmt(actualCompletion)}) · cost: $${cost.toFixed(5)}`, 'muted', 'info');
 
-        // Update sidebar immediately without waiting for next poll
-        setUsage(prev => ({
-          ...prev,
-          tokensUsed:        prev.tokensUsed        + promptTokens + completionTokens,
-          sessionPrompt:     prev.sessionPrompt     + promptTokens,
-          sessionCompletion: prev.sessionCompletion + completionTokens,
-          requests:          prev.requests          + 1,
-          sessionCost:       prev.sessionCost       + cost,
-        }));
-      }
+      setUsage(prev => ({
+        ...prev,
+        tokensUsed:        prev.tokensUsed        + actualPrompt + actualCompletion,
+        sessionPrompt:     prev.sessionPrompt     + actualPrompt,
+        sessionCompletion: prev.sessionCompletion + actualCompletion,
+        requests:          prev.requests          + 1,
+        sessionCost:       prev.sessionCost       + cost,
+      }));
 
       // Refresh from backend after a short delay for http-log propagation
       setTimeout(pollUsage, 3000);

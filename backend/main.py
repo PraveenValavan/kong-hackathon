@@ -223,6 +223,8 @@ def list_events(
 def usage_summary(
     group_by: str = "user_id",
     session_date: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
     department: Optional[str] = None,
 ):
     allowed = {"user_id", "department", "model", "provider", "session_date", "team_id", "session_id"}
@@ -232,6 +234,10 @@ def usage_summary(
     filters, params = ["status = 200"], []
     if session_date:
         filters.append("session_date = ?"); params.append(session_date)
+    if since:
+        filters.append("session_date >= ?"); params.append(since)
+    if until:
+        filters.append("session_date <= ?"); params.append(until)
     if department:
         filters.append("department = ?");   params.append(department)
 

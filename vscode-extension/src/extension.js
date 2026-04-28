@@ -9,11 +9,11 @@ const LIMIT    = 500000;
 const POLL_MS  = 10000;
 
 const MODELS = {
-  'gemini-2.5-flash':  { inRate: 0.075, outRate: 0.30  },
-  'claude-haiku-4-5':  { inRate: 0.80,  outRate: 4.00  },
-  'gpt-4o':            { inRate: 2.50,  outRate: 10.00 },
-  'claude-sonnet-4-6': { inRate: 3.00,  outRate: 15.00 },
-  'claude-opus-4-7':   { inRate: 15.00, outRate: 75.00 },
+  'gemini-2.5-flash':       { inRate: 0.075, outRate: 0.30  },
+  'claude-haiku-4-5-20251001': { inRate: 0.80,  outRate: 4.00  },
+  'gpt-4o':                 { inRate: 2.50,  outRate: 10.00 },
+  'claude-sonnet-4-6':      { inRate: 3.00,  outRate: 15.00 },
+  'claude-opus-4-7':        { inRate: 15.00, outRate: 75.00 },
 };
 
 // ---------------------------------------------------------------------------
@@ -35,28 +35,29 @@ function fetchJson(url) {
 
 async function loadData(userId) {
   try {
-    const [dashboard, session] = await Promise.all([
-      fetchJson(`${BACKEND}/usage/dashboard?user_id=${userId}`),
-      fetchJson(`${BACKEND}/usage/sessions?user_id=${userId}&limit=1`),
-    ]);
+    const today = new Date().toISOString().slice(0, 10);
+    const dashboard = await fetchJson(`${BACKEND}/usage/dashboard?since=${today}`);
+    const totals = dashboard.totals ?? {};
+    const tokensUsed = totals.total_tokens ?? 0;
 
-    const hourly = dashboard.hourly_tokens_used ?? 0;
-    const deptAvg = dashboard.dept_avg_hourly_pct ?? 38.2;
-    const currentModel = dashboard.current_model ?? 'claude-sonnet-4-6';
-    const sess = Array.isArray(session) && session[0] ? session[0] : null;
+    const deptRows = (dashboard.by_department ?? []).map(r => ({
+      name: r.department ?? '—',
+      pct:  ((r.total_tokens ?? 0) / LIMIT) * 100,
+      highlight: false,
+    }));
 
     return {
       live: true,
-      tokensUsed:  hourly,
-      remaining:   LIMIT - hourly,
-      pct:         ((hourly / LIMIT) * 100).toFixed(1),
-      sessionPrompt:     sess?.prompt_tokens     ?? 0,
-      sessionCompletion: sess?.completion_tokens ?? 0,
-      sessionCost:       sess?.cost_usd          ?? 0,
-      requests:          sess?.request_count     ?? 0,
-      currentModel,
-      deptPct:  deptAvg,
-      deptRows: dashboard.dept_breakdown ?? [],
+      tokensUsed,
+      remaining:         LIMIT - tokensUsed,
+      pct:               ((tokensUsed / LIMIT) * 100).toFixed(1),
+      sessionPrompt:     totals.total_prompt_tokens     ?? 0,
+      sessionCompletion: totals.total_completion_tokens ?? 0,
+      sessionCost:       totals.total_cost_usd          ?? 0,
+      requests:          totals.total_requests          ?? 0,
+      currentModel:      'claude-sonnet-4-6',
+      deptPct:           ((tokensUsed / LIMIT) * 100),
+      deptRows,
     };
   } catch {
     return null;
@@ -441,7 +442,7 @@ class AiraPanelProvider {
         <div class="model-dot" style="background:#22c55e"></div>
         gemini-2.5-flash <span class="model-tag cheap">cheapest</span>
       </button>
-      <button class="model-opt" data-model="claude-haiku-4-5" onclick="pickModel('claude-haiku-4-5')">
+      <button class="model-opt" data-model="claude-haiku-4-5-20251001" onclick="pickModel('claude-haiku-4-5-20251001')">
         <div class="model-dot" style="background:#a855f7"></div>
         claude-haiku-4-5
       </button>
@@ -545,8 +546,8 @@ const SEG_ZONES = [
 
 const EL = {};
 const SEG_ELS = [];
-let resetSeconds = 42 * 60 + 17;
-let limitHitMins = 28;
+let resetSeconds = 60 * 60; // 1 hour window, counts down
+let limitHitMins = null;   // null = unknown until live data arrives
 
 function fmt(n) { return Number(n).toLocaleString(); }
 function threshInfo(p) { return THRESH.find(t => p >= t.min); }
@@ -581,13 +582,19 @@ function renderMeter(tokensUsed, remaining) {
 }
 
 function renderSession(d) {
-  const total = d.sessionPrompt + d.sessionCompletion;
-  EL.sPrompt.textContent     = fmt(d.sessionPrompt);
-  EL.sCompletion.textContent = fmt(d.sessionCompletion);
+  const total = (d.sessionPrompt || 0) + (d.sessionCompletion || 0);
+  EL.sPrompt.textContent     = fmt(d.sessionPrompt || 0);
+  EL.sCompletion.textContent = fmt(d.sessionCompletion || 0);
   EL.sTotal.textContent      = fmt(total);
-  EL.sReq.textContent        = d.requests;
-  EL.sCost.textContent       = '$' + Number(d.sessionCost).toFixed(2);
+  EL.sReq.textContent        = d.requests || 0;
+  EL.sCost.textContent       = '$' + Number(d.sessionCost || 0).toFixed(2);
+  if (EL.sBurn) {
+    const elapsedMin = Math.max((Date.now() - renderSession._startTime) / 60000, 0.1);
+    const burn = d.sessionCost > 0 ? (d.sessionCost / elapsedMin).toFixed(3) : '0.000';
+    EL.sBurn.textContent = '$' + burn + '/min';
+  }
 }
+renderSession._startTime = Date.now();
 
 function updateLiveBadge(live) {
   const dot = EL.liveDot;
@@ -606,7 +613,7 @@ function tickReset() {
   const m = String(Math.floor(resetSeconds / 60)).padStart(2,'0');
   const s = String(resetSeconds % 60).padStart(2,'0');
   EL.resetTimer.textContent = \`\${m}:\${s}\`;
-  EL.limitHit.textContent   = limitHitMins < 60 ? \`~\${limitHitMins} min\` : '> 1 hr';
+  EL.limitHit.textContent   = limitHitMins === null ? '> 1 hr' : limitHitMins < 60 ? \`~\${limitHitMins} min\` : '> 1 hr';
 }
 
 function toggleSection(name) {
@@ -644,9 +651,9 @@ function init() {
 
   for (let i = 1; i <= 5; i++) SEG_ELS.push(document.getElementById('seg' + i));
 
-  // initial render with mock data
-  renderMeter(287441, 212559);
-  renderSession({ sessionPrompt:124820, sessionCompletion:71440, sessionCost:3.24, requests:47 });
+  // initial render with zeros — live data fills in after first poll
+  renderMeter(0, LIMIT);
+  renderSession({ sessionPrompt:0, sessionCompletion:0, sessionCost:0, requests:0 });
   updateLiveBadge(false);
   tickClock();
 
@@ -660,7 +667,11 @@ window.addEventListener('message', ({ data: msg }) => {
     renderMeter(d.tokensUsed, d.remaining);
     renderSession(d);
     updateLiveBadge(d.live);
-    limitHitMins = d.limitHitMins ?? limitHitMins;
+    if (d.tokensUsed > 0) {
+      const elapsedMin = Math.max((Date.now() - renderSession._startTime) / 60000, 0.1);
+      const burnRate = d.tokensUsed / elapsedMin;
+      limitHitMins = burnRate > 0 ? Math.round((LIMIT - d.tokensUsed) / burnRate) : null;
+    }
   }
   if (msg.type === 'sim') {
     renderMeter(msg.tokensUsed, msg.remaining);
@@ -739,17 +750,6 @@ class AiraTerminalPanel {
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadia Mono',Consolas,'Courier New',monospace;height:100vh;overflow:hidden;display:flex;flex-direction:column}
-.chrome{height:36px;background:#0a0a0c;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;flex-shrink:0;user-select:none}
-.traffic{display:flex;gap:7px}
-.dot{width:12px;height:12px;border-radius:50%}
-.chrome-title{flex:1;text-align:center;font-size:11px;color:var(--text3);letter-spacing:.5px}
-.tab-bar{height:38px;background:#0e0e10;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;padding:0 8px;gap:2px;flex-shrink:0}
-.tab{height:30px;padding:0 14px;font-size:11px;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:7px;border-radius:6px 6px 0 0;border:1px solid transparent;border-bottom:none;position:relative;user-select:none}
-.tab:hover{color:var(--text2);background:var(--bg2)}
-.tab.active{color:var(--text);background:var(--bg1);border-color:var(--border)}
-.tab.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:var(--bg1)}
-.tab-dot{width:7px;height:7px;border-radius:50%}
-.tab-spacer{flex:1}
 .terminal-body{flex:1;display:flex;overflow:hidden}
 .gutter{width:38px;background:#0a0a0c;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:14px;flex-shrink:0}
 .gutter-line{width:1px;flex:1;background:var(--border)}
@@ -759,8 +759,6 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
 .conn-dot.err{background:var(--red);box-shadow:0 0 6px var(--red)}
 @keyframes pulse-conn{0%,100%{box-shadow:0 0 4px var(--green)}50%{box-shadow:0 0 10px var(--green)}}
 .main-pane{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.tab-panel{display:none;flex:1;flex-direction:column;overflow:hidden}
-.tab-panel.active{display:flex}
 .chat-layout{flex:1;display:flex;overflow:hidden}
 .terminal-area{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
 .terminal-output{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
@@ -811,6 +809,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
 .pct-badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 .thresh-alert{margin-top:6px;padding:5px 8px;border-radius:3px;font-size:10px;display:none;align-items:center;gap:6px}
 .thresh-alert.visible{display:flex}
+.thresh-alert.warn{background:rgba(240,165,0,.12);color:var(--amber);border:1px solid rgba(240,165,0,.2)}
 .thresh-alert.caution{background:rgba(249,115,22,.12);color:var(--orange);border:1px solid rgba(249,115,22,.2)}
 .thresh-alert.danger{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 .thresh-alert.critical{background:rgba(220,38,38,.15);color:var(--t-critical);border:1px solid rgba(220,38,38,.3)}
@@ -838,23 +837,6 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
 </head>
 <body>
 
-<div class="chrome">
-  <div class="traffic">
-    <div class="dot" style="background:#ff5f57"></div>
-    <div class="dot" style="background:#ffbd2e"></div>
-    <div class="dot" style="background:#28ca42"></div>
-  </div>
-  <div class="chrome-title">AIRA Terminal — kong-ai-gateway — praveen.valavan@codeartisans.net</div>
-</div>
-
-<div class="tab-bar">
-  <div class="tab active" data-tab="chat">
-    <div class="tab-dot" style="background:var(--purple)"></div>
-    <span id="tab-chat-label">Chat · claude-sonnet-4-6</span>
-  </div>
-  <div class="tab-spacer"></div>
-</div>
-
 <div class="terminal-body">
   <div class="gutter">
     <div class="conn-dot" id="conn-dot"></div>
@@ -864,9 +846,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
   </div>
 
   <div class="main-pane">
-
-    <div class="tab-panel active" id="panel-chat">
-      <div class="chat-layout">
+    <div class="chat-layout">
         <div class="terminal-area">
           <div class="terminal-output" id="terminal-output"></div>
           <div class="input-bar">
@@ -933,9 +913,9 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
           <div class="data-section">
             <div class="section-label">Dept usage · this hour</div>
             <div class="dept-row you"><div class="dept-label">You</div><div class="dept-bar-bg"><div class="dept-bar-fill" id="dept-you-bar" style="width:0%;background:var(--orange)"></div></div><div class="dept-pct" id="dept-you-pct">0.0%</div></div>
-            <div class="dept-row"><div class="dept-label">R&amp;D avg</div><div class="dept-bar-bg"><div class="dept-bar-fill" style="width:38.2%;background:var(--text3)"></div></div><div class="dept-pct">38.2%</div></div>
-            <div class="dept-row"><div class="dept-label">Eng avg</div><div class="dept-bar-bg"><div class="dept-bar-fill" style="width:22.1%;background:var(--text3)"></div></div><div class="dept-pct">22.1%</div></div>
-            <div class="dept-row"><div class="dept-label">Finance</div><div class="dept-bar-bg"><div class="dept-bar-fill" style="width:11.4%;background:var(--text3)"></div></div><div class="dept-pct">11.4%</div></div>
+            <div class="dept-row"><div class="dept-label">R&amp;D</div><div class="dept-bar-bg"><div class="dept-bar-fill" id="dept-rnd-bar" style="width:0%;background:var(--text3)"></div></div><div class="dept-pct" id="dept-rnd-pct">0.0%</div></div>
+            <div class="dept-row"><div class="dept-label">Eng</div><div class="dept-bar-bg"><div class="dept-bar-fill" id="dept-eng-bar" style="width:0%;background:var(--text3)"></div></div><div class="dept-pct" id="dept-eng-pct">0.0%</div></div>
+            <div class="dept-row"><div class="dept-label">Finance</div><div class="dept-bar-bg"><div class="dept-bar-fill" id="dept-fin-bar" style="width:0%;background:var(--text3)"></div></div><div class="dept-pct" id="dept-fin-pct">0.0%</div></div>
           </div>
 
           <div class="data-section" style="border-bottom:none">
@@ -946,9 +926,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
             </div>
           </div>
         </div>
-      </div>
     </div>
-
   </div>
 </div>
 
@@ -964,7 +942,6 @@ body{background:var(--bg);color:var(--text);font-family:'Cascadia Code','Cascadi
 <script nonce="${nonce}">
 const vscode  = acquireVsCodeApi();
 const BACKEND = 'http://localhost:8002';
-const KONG    = 'http://localhost:8000';
 const OAUTH2  = 'http://localhost:8080/default/token';
 const LIMIT   = 500000;
 
@@ -1009,7 +986,7 @@ function initEls() {
   ['meter-count','pct-badge','pct-badge-text','thresh-alert','remain-count','limit-hit',
    's-prompt','s-completion','s-total','s-req','s-cost','s-burn','s-elapsed',
    'sb-tokens','sb-pct','sb-model','sb-clock','sb-conn','sb-conn-text',
-   'terminal-output','input-model-label','input-cost-hint','tab-chat-label',
+   'terminal-output','input-model-label','input-cost-hint',
    'conn-dot','conn-label','ctx-pct','dept-you-bar','dept-you-pct'
   ].forEach(id => { EL[id.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())] = document.getElementById(id); });
   SEG_ELS = [1,2,3,4,5].map(i => document.getElementById('seg'+i));
@@ -1109,7 +1086,6 @@ function switchModel(key) {
   state.currentModel = key;
   EL.sbModel.textContent = key;
   EL.inputModelLabel.textContent = key;
-  EL.tabChatLabel.textContent = 'Chat · ' + key;
   document.querySelectorAll('.model-option').forEach(el => {
     el.classList.toggle('active', el.getAttribute('onclick').includes(key));
   });
@@ -1149,16 +1125,36 @@ async function bootstrap() {
 
 async function pollBackend() {
   try {
-    const summary = await fetch(BACKEND + '/usage/summary?since=' + new Date(Date.now()-3600000).toISOString().slice(0,10)).then(r=>r.json());
-    const rows = Array.isArray(summary) ? summary : [];
-    state.tokensUsed = rows.reduce((a,r)=>a+(r.total_tokens??0),0);
-    state.sessionPrompt = rows.reduce((a,r)=>a+(r.prompt_tokens??0),0);
-    state.sessionCompletion = rows.reduce((a,r)=>a+(r.completion_tokens??0),0);
-    state.sessionCost = rows.reduce((a,r)=>a+(r.cost_usd??0),0);
-    state.requests = rows.reduce((a,r)=>a+(r.requests??0),0);
+    const today = new Date().toISOString().slice(0,10);
+    const [summaryRes, deptRes] = await Promise.all([
+      fetch(BACKEND + '/usage/summary?group_by=user_id&session_date=' + today),
+      fetch(BACKEND + '/usage/cost/by-department?since=' + today),
+    ]);
+    const rows    = summaryRes.ok ? await summaryRes.json() : [];
+    const deptCost = deptRes.ok  ? await deptRes.json()    : [];
+
+    const arr = Array.isArray(rows) ? rows : [];
+    const polledTokens = arr.reduce((a,r)=>a+(r.total_tokens??0),0);
+    state.tokensUsed        = Math.max(polledTokens, state.tokensUsed);
+    state.sessionPrompt     = Math.max(arr.reduce((a,r)=>a+(r.prompt_tokens??0),0), state.sessionPrompt);
+    state.sessionCompletion = Math.max(arr.reduce((a,r)=>a+(r.completion_tokens??0),0), state.sessionCompletion);
+    state.sessionCost       = Math.max(arr.reduce((a,r)=>a+(r.total_cost_usd??r.cost_usd??0),0), state.sessionCost);
+    state.requests          = Math.max(arr.reduce((a,r)=>a+(r.requests??0),0), state.requests);
+
+    const DEPT_ID = { 'r&d':'rnd', 'engineering':'eng', 'finance':'fin' };
+    const deptArr = Array.isArray(deptCost) ? deptCost : [];
+    deptArr.forEach(r => {
+      if (!r.department) return;
+      const pct = ((r.total_tokens ?? 0) / LIMIT) * 100;
+      const key = DEPT_ID[r.department.toLowerCase()] ?? r.department.toLowerCase();
+      const el    = document.getElementById('dept-' + key + '-bar');
+      const pctEl = document.getElementById('dept-' + key + '-pct');
+      if (el)    el.style.width = Math.min(pct, 100) + '%';
+      if (pctEl) pctEl.textContent = pct.toFixed(1) + '%';
+    });
+
     updateMeter();
     updateSession();
-
   } catch { /* backend may not be running */ }
 }
 
@@ -1166,17 +1162,12 @@ async function sendPrompt() {
   const input = document.getElementById('user-input');
   const text = input.value.trim();
   if (!text || state.sending) return;
+  const estimatedInputTokens = Math.ceil(text.length / 4);
   input.value = '';
   state.sending = true;
   updateInputCost('');
 
   appendLine('$', 'sys', text, 'user');
-
-  if (!state.bearerToken) {
-    appendLine('WARN', 'warn', 'No bearer token — start the stack with docker compose up', 'danger');
-    state.sending = false;
-    return;
-  }
 
   const thinkId = 'think-' + Date.now();
   const out = EL.terminalOutput;
@@ -1188,43 +1179,18 @@ async function sendPrompt() {
   out.scrollTop = out.scrollHeight;
 
   try {
-    let res = await fetch(KONG + '/chat', {
+    const res = await fetch(BACKEND + '/chat', {
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer ' + state.bearerToken,
-        'x-session-id':'sess-' + state.startTime,
-      },
+      headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({
         messages:[{role:'user',content:text}],
+        model: state.currentModel,
         max_tokens:1024,
       }),
     });
     document.getElementById(thinkId)?.remove();
 
     if (res.status === 429) { appendLine('WARN','warn','Rate limit exceeded — token limit reached','danger'); state.sending=false; return; }
-    if (res.status === 401) {
-      appendLine('INFO','info','Token expired — refreshing…','muted');
-      try {
-        const tbody = new URLSearchParams({grant_type:'client_credentials',client_id:'aira-local',client_secret:'aira-secret',scope:'engineering'});
-        const tr = await fetch(OAUTH2, {method:'POST',body:tbody});
-        if (!tr.ok) throw new Error();
-        const {access_token} = await tr.json();
-        state.bearerToken = access_token;
-        appendLine('INFO','info','Token refreshed — retrying…','muted');
-        const retry = await fetch(KONG + '/chat', {
-          method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.bearerToken,'x-session-id':'sess-'+state.startTime},
-          body: JSON.stringify({messages:[{role:'user',content:text}],max_tokens:1024}),
-        });
-        if (!retry.ok) {
-          const errBody = await retry.json().catch(()=>({}));
-          appendLine('WARN','warn','Auth error '+retry.status+': '+(errBody.message??errBody.error?.message??retry.statusText),'danger');
-          state.sending=false; return;
-        }
-        res = retry;
-      } catch { appendLine('WARN','warn','Token refresh failed — check OAuth2 server','danger'); state.sending=false; return; }
-    }
     if (res.status === 400) {
       const err = await res.json().catch(()=>({}));
       const msg = err.message ?? err.error?.message ?? 'policy violation';
@@ -1236,24 +1202,24 @@ async function sendPrompt() {
 
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content ?? data?.content?.[0]?.text ?? JSON.stringify(data);
-    const usedTokens = data?.usage?.total_tokens ?? 0;
     const promptTok = data?.usage?.input_tokens ?? data?.usage?.prompt_tokens ?? 0;
     const compTok = data?.usage?.output_tokens ?? data?.usage?.completion_tokens ?? 0;
 
     appendLine('OK', 'ok', reply, 'assistant');
 
-    if (usedTokens) {
-      const model = MODELS[state.currentModel] ?? MODELS['claude-sonnet-4-6'];
-      const cost = (promptTok * model.inRate + compTok * model.outRate) / 1000000;
-      state.sessionPrompt += promptTok;
-      state.sessionCompletion += compTok;
-      state.sessionCost += cost;
-      state.requests++;
-      appendLine('INFO','info',\`tokens: \${fmt(usedTokens)} (prompt \${fmt(promptTok)} + completion \${fmt(compTok)}) · cost: $\${cost.toFixed(5)}\`,'muted');
-      updateMeter();
-      updateSession();
-      setTimeout(pollBackend, 3000);
-    }
+    const actualPrompt = promptTok || estimatedInputTokens;
+    const actualComp   = compTok   || Math.ceil(reply.length / 4);
+    const model = MODELS[state.currentModel] ?? MODELS['claude-sonnet-4-6'];
+    const cost = (actualPrompt * model.inRate + actualComp * model.outRate) / 1000000;
+    state.sessionPrompt     += actualPrompt;
+    state.sessionCompletion += actualComp;
+    state.tokensUsed        += actualPrompt + actualComp;
+    state.sessionCost       += cost;
+    state.requests++;
+    appendLine('INFO','info',\`tokens: \${fmt(actualPrompt + actualComp)} (prompt \${fmt(actualPrompt)} + completion \${fmt(actualComp)}) · cost: $\${cost.toFixed(5)}\`,'muted');
+    updateMeter();
+    updateSession();
+    setTimeout(pollBackend, 3000);
   } catch {
     document.getElementById(thinkId)?.remove();
     appendLine('INFO','info','Kong gateway unreachable — check that the stack is running','muted');
