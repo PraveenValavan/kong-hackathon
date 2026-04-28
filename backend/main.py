@@ -859,6 +859,18 @@ def _build_kong_config(teams: list) -> dict:
 
     base_plugins = [
         {
+            "name": "cors",
+            "config": {
+                "origins": ["*"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+                "headers": ["Accept", "Content-Type", "Authorization", "x-session-id", "x-team-id", "x-department"],
+                "exposed_headers": ["X-Kong-Request-Id"],
+                "credentials": False,
+                "max_age": 3600,
+                "preflight_continue": False,
+            },
+        },
+        {
             "name": "openid-connect",
             "config": {
                 "issuer": "http://mock-oauth2:8080/default/.well-known/openid-configuration",

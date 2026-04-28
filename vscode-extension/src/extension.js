@@ -1197,16 +1197,29 @@ async function sendPrompt() {
       },
       body: JSON.stringify({
         messages:[{role:'user',content:text}],
-        model:state.currentModel,
         max_tokens:1024,
       }),
     });
     document.getElementById(thinkId)?.remove();
 
     if (res.status === 429) { appendLine('WARN','warn','Rate limit exceeded — token limit reached','danger'); state.sending=false; return; }
+    if (res.status === 401) {
+      appendLine('INFO','info','Token expired — refreshing…','muted');
+      try {
+        const body = new URLSearchParams({grant_type:'client_credentials',client_id:'aira-local',client_secret:'aira-secret',scope:'engineering'});
+        const tr = await fetch(OAUTH2, {method:'POST',body});
+        if (!tr.ok) throw new Error();
+        const {access_token} = await tr.json();
+        state.bearerToken = access_token;
+        appendLine('OK','ok','Token refreshed — please resend your message','success');
+      } catch { appendLine('WARN','warn','Token refresh failed — check OAuth2 server','danger'); }
+      state.sending=false; return;
+    }
     if (res.status === 400) {
       const err = await res.json().catch(()=>({}));
-      appendLine('WARN','warn','PII Guard blocked: '+(err.message??'policy violation'),'danger');
+      const msg = err.message ?? err.error?.message ?? 'policy violation';
+      const isPii = msg.toLowerCase().includes('pii') || msg.toLowerCase().includes('guard') || msg.toLowerCase().includes('blocked') || msg.toLowerCase().includes('deny');
+      appendLine('WARN','warn', isPii ? 'PII Guard blocked: '+msg : 'Kong error 400: '+msg,'danger');
       state.sending=false; return;
     }
     if (!res.ok) { appendLine('WARN','warn','Kong error '+res.status+' — '+res.statusText,'danger'); state.sending=false; return; }
