@@ -1298,7 +1298,6 @@ function sendPrompt() {
 
   vscode.postMessage({ command:'chat', id: msgId, token: state.bearerToken, payload:{
     messages,
-    model: state.currentModel,
     max_tokens:1024,
   }});
 }
